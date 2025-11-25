@@ -141,8 +141,8 @@ bool gameStarter::initM2TWEOP()
 	}
 
 	std::vector<std::wstring> newFiles = {
+	L"d3d9.dll",
 	L"eopData/resources/libraries/d3d9_vk.dll",
-	L"eopData/resources/libraries/d3d9.dll",
 	L"eopData/resources/libraries/libfbxsdk.dll",
 	L"eopData/resources/libraries/lua5.1.dll",
 	L"eopData/resources/libraries/openal32.dll",
