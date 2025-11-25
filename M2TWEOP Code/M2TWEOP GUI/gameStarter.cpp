@@ -141,18 +141,18 @@ bool gameStarter::initM2TWEOP()
 	}
 
 	std::vector<std::wstring> newFiles = {
-	L"d3d9_vk.dll",
-	L"d3d9.dll",
-	L"libfbxsdk.dll",
-	L"lua5.1.dll",
-	L"openal32.dll",
-	L"discord_game_sdk.dll",
-	L"avcodec-61.dll",
-	L"avfilter-10.dll",
-	L"avformat-61.dll",
-	L"avutil-59.dll",
-	L"swresample-5.dll",
-	L"swscale-8.dll",
+	L"eopData/resources/libraries/d3d9_vk.dll",
+	L"eopData/resources/libraries/d3d9.dll",
+	L"eopData/resources/libraries/libfbxsdk.dll",
+	L"eopData/resources/libraries/lua5.1.dll",
+	L"eopData/resources/libraries/openal32.dll",
+	L"eopData/resources/libraries/discord_game_sdk.dll",
+	L"eopData/resources/libraries/avcodec-61.dll",
+	L"eopData/resources/libraries/avfilter-10.dll",
+	L"eopData/resources/libraries/avformat-61.dll",
+	L"eopData/resources/libraries/avutil-59.dll",
+	L"eopData/resources/libraries/swresample-5.dll",
+	L"eopData/resources/libraries/swscale-8.dll",
 	};
 
 	std::vector<std::wstring> oldFiles = {
