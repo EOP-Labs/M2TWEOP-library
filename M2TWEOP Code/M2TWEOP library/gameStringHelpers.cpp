@@ -104,6 +104,8 @@ namespace gameStringHelpers
 	{
 		try
 		{
+			if (!uniString)
+				return "";
 			UNICODE_STRING* uniS = *uniString;
 			const wchar_t* wstr = reinterpret_cast<wchar_t*>(&uniS->Buffer);
 			std::string strTo;
