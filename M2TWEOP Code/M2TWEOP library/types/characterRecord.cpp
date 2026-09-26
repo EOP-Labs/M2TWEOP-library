@@ -197,11 +197,11 @@ namespace characterRecordHelpers
 	{
 		if (fieldIndex == namedChar_localizedFullName)
 			return gameStringHelpers::uniStringToStr(genChar->localizedFullName);
-		if (fieldIndex == namedChar_localizedNameForSave)
+		if (fieldIndex == namedChar_localizedNameForSave && genChar->localizedNameForSave)
 			return gameStringHelpers::uniStringToStr(*genChar->localizedNameForSave);
-		if (fieldIndex == namedChar_localizedNextNameForSave)
+		if (fieldIndex == namedChar_localizedNextNameForSave && genChar->localizedNextNameForSave)
 			return gameStringHelpers::uniStringToStr(*genChar->localizedNextNameForSave);
-		if (fieldIndex == namedChar_localizedNicknameForSave)
+		if (fieldIndex == namedChar_localizedNicknameForSave && genChar->localizedNicknameForSave)
 			return gameStringHelpers::uniStringToStr(*genChar->localizedNicknameForSave);
 		return "";
 	}
