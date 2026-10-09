@@ -69,10 +69,11 @@ namespace sol_ImGui
 
 		//@section ImGuiChildFlags
 		/***
-		Enum with a list of ImGui Focused Flags.
+		Enum with a list of ImGui Child Flags.
 
 		@tfield int None
-		@tfield int Border Show an outer border and enable WindowPadding. (Important: this is always == 1 == true for legacy reason)
+		@tfield int Borders Show an outer border and enable WindowPadding. (Important: this is always == 1 == true for legacy reason)
+		@tfield int Border Legacy name for Borders.
 		@tfield int AlwaysUseWindowPadding Pad with style.WindowPadding even if no border are drawn (no padding by default for non-bordered child windows because it makes more sense)
 		@tfield int ResizeX Allow resize from right border (layout direction). Enable .ini saving (unless ImGuiWindowFlags_NoSavedSettings passed to window flags)
 		@tfield int ResizeY Allow resize from bottom border (layout direction). "
@@ -80,19 +81,22 @@ namespace sol_ImGui
 		@tfield int AutoResizeY Enable auto-resizing height.
 		@tfield int AlwaysAutoResize Combined with AutoResizeX/AutoResizeY. Always measure size even when child is hidden, always return true, always disable clipping optimization! NOT RECOMMENDED.
 		@tfield int FrameStyle Style the child window like a framed item: use FrameBg, FrameRounding, FrameBorderSize, FramePadding instead of ChildBg, ChildRounding, ChildBorderSize, WindowPadding.
+		@tfield int NavFlattened Share focus scope, allow keyboard/gamepad navigation to cross over parent border to this child or between sibling child windows.
 
 		@table ImGuiChildFlags
 		*/
 		lua.new_enum("ImGuiChildFlags",
-			"None", ImGuiFocusedFlags_None,
-			"Border", ImGuiChildFlags_Border,
+			"None", ImGuiChildFlags_None,
+			"Borders", ImGuiChildFlags_Borders,
+			"Border", ImGuiChildFlags_Borders,
 			"AlwaysUseWindowPadding", ImGuiChildFlags_AlwaysUseWindowPadding,
 			"ResizeX", ImGuiChildFlags_ResizeX,
 			"ResizeY", ImGuiChildFlags_ResizeY,
 			"AutoResizeX", ImGuiChildFlags_AutoResizeX,
 			"AutoResizeY", ImGuiChildFlags_AutoResizeY,
 			"AlwaysAutoResize", ImGuiChildFlags_AlwaysAutoResize,
-			"FrameStyle", ImGuiChildFlags_FrameStyle
+			"FrameStyle", ImGuiChildFlags_FrameStyle,
+			"NavFlattened", ImGuiChildFlags_NavFlattened
 		);
 
 
@@ -126,6 +130,10 @@ namespace sol_ImGui
 		@tfield int CallbackResize Callback on buffer capacity changes request (beyond 'buf_size' parameter value), allowing the string to grow. Notify when the string wants to be resized (for string types which hold a cache of their Size). You will be provided a new BufSize in the callback and NEED to honor it. (see misc/cpp/imgui_stdlib.h for an example of using this)
 		@tfield int CallbackEdit Callback on any edit (note that InputText() already returns true on edit, the callback is useful mainly to manipulate the underlying buffer while focus is active)
 		@tfield int EscapeClearsAll Escape key clears content if not empty, and deactivate otherwise (contrast to default behavior of Escape to revert)
+		@tfield int ParseEmptyRefVal InputFloat(), InputInt(), InputScalar() etc. only: parse empty string as zero value.
+		@tfield int DisplayEmptyRefVal InputFloat(), InputInt(), InputScalar() etc. only: when value is zero, do not display it. Generally used with ParseEmptyRefVal.
+		@tfield int ElideLeft When text doesn't fit, elide left side to ensure right side stays visible. Useful for path/filenames. Single-line only!
+		@tfield int WordWrap InputTextMultiline(): word-wrap lines that are too long.
 
 		@table ImGuiInputTextFlags
 		*/
@@ -152,7 +160,11 @@ namespace sol_ImGui
 			"CharsScientific", ImGuiInputTextFlags_CharsScientific,
 			"CallbackResize", ImGuiInputTextFlags_CallbackResize,
 			"CallbackEdit", ImGuiInputTextFlags_CallbackEdit,
-			"EscapeClearsAll", ImGuiInputTextFlags_EscapeClearsAll
+			"EscapeClearsAll", ImGuiInputTextFlags_EscapeClearsAll,
+			"ParseEmptyRefVal", ImGuiInputTextFlags_ParseEmptyRefVal,
+			"DisplayEmptyRefVal", ImGuiInputTextFlags_DisplayEmptyRefVal,
+			"ElideLeft", ImGuiInputTextFlags_ElideLeft,
+			"WordWrap", ImGuiInputTextFlags_WordWrap
 		);
 #pragma endregion InputText Flags
 
@@ -175,8 +187,15 @@ namespace sol_ImGui
 		@tfield int FramePadding Use FramePadding (even for an unframed text node) to vertically align text baseline to regular widget height. Equivalent to calling AlignTextToFramePadding().
 		@tfield int SpanAvailWidth Extend hit box to the right-most edge, even if not framed. This is not the default in order to allow adding other items on the same line. In the future we may refactor the hit system to be front-to-back, allowing natural overlaps and then this can become the default.
 		@tfield int SpanFullWidth Extend hit box to the left-most and right-most edges (bypass the indented area).
-		@tfield int NavLeftJumpsBackHere (WIP) Nav: left direction may move to this TreeNode() from any of its child (items submitted between TreeNode and TreePop)
+		@tfield int SpanLabelWidth Narrow hit box + narrow hovering highlight, will only cover the label text.
+		@tfield int SpanAllColumns Frame will span all columns of its container table (label will still fit in current column)
+		@tfield int LabelSpanAllColumns Label will span all columns of its container table
+		@tfield int NavLeftJumpsToParent Nav: left arrow moves back to parent. This is processed in TreePop() when there's an unfulfilled Left nav request remaining.
+		@tfield int NavLeftJumpsBackHere Legacy name for NavLeftJumpsToParent.
 		@tfield int CollapsingHeader
+		@tfield int DrawLinesNone No lines drawn
+		@tfield int DrawLinesFull Horizontal lines to child nodes. Vertical line drawn down to TreePop() position: cover full contents. Faster (for large trees).
+		@tfield int DrawLinesToNodes Horizontal lines to child nodes. Vertical line drawn down to bottom-most child node. Slower (for large trees).
 
 		@table ImGuiTreeNodeFlags
 		*/
@@ -196,8 +215,15 @@ namespace sol_ImGui
 			"FramePadding", ImGuiTreeNodeFlags_FramePadding,
 			"SpanAvailWidth", ImGuiTreeNodeFlags_SpanAvailWidth,
 			"SpanFullWidth", ImGuiTreeNodeFlags_SpanFullWidth,
-			"NavLeftJumpsBackHere", ImGuiTreeNodeFlags_NavLeftJumpsBackHere,
-			"CollapsingHeader", ImGuiTreeNodeFlags_CollapsingHeader
+			"SpanLabelWidth", ImGuiTreeNodeFlags_SpanLabelWidth,
+			"SpanAllColumns", ImGuiTreeNodeFlags_SpanAllColumns,
+			"LabelSpanAllColumns", ImGuiTreeNodeFlags_LabelSpanAllColumns,
+			"NavLeftJumpsToParent", ImGuiTreeNodeFlags_NavLeftJumpsToParent,
+			"NavLeftJumpsBackHere", ImGuiTreeNodeFlags_NavLeftJumpsToParent,
+			"CollapsingHeader", ImGuiTreeNodeFlags_CollapsingHeader,
+			"DrawLinesNone", ImGuiTreeNodeFlags_DrawLinesNone,
+			"DrawLinesFull", ImGuiTreeNodeFlags_DrawLinesFull,
+			"DrawLinesToNodes", ImGuiTreeNodeFlags_DrawLinesToNodes
 		);
 #pragma endregion TreeNode Flags
 
@@ -206,11 +232,11 @@ namespace sol_ImGui
 		Enum with a list of ImGui Popup Flags.
 
 		@tfield int None
-		@tfield int MouseButtonLeft For BeginPopupContext*(): open on Left Mouse release. Guaranteed to always be == 0 (same as ImGuiMouseButton_Left)
-		@tfield int MouseButtonRight For BeginPopupContext*(): open on Right Mouse release. Guaranteed to always be == 1 (same as ImGuiMouseButton_Right)
-		@tfield int MouseButtonMiddle For BeginPopupContext*(): open on Middle Mouse release. Guaranteed to always be == 2 (same as ImGuiMouseButton_Middle)
+		@tfield int MouseButtonLeft For BeginPopupContext*(): open on Left Mouse release. Also used when flags are passed without a mouse button, as before.
+		@tfield int MouseButtonRight For BeginPopupContext*(): open on Right Mouse release (default when no flags are passed).
+		@tfield int MouseButtonMiddle For BeginPopupContext*(): open on Middle Mouse release.
 		@tfield int MouseButtonMask_
-		@tfield int MouseButtonDefault_
+		@tfield int MouseButtonDefault_ Same as MouseButtonRight.
 		@tfield int NoOpenOverExistingPopup For OpenPopup*(), BeginPopupContext*(): don't open if there's already a popup at the same level of the popup stack
 		@tfield int NoOpenOverItems For BeginPopupContextWindow(): don't return true when hovering items, only when hovering empty space
 		@tfield int AnyPopupId For IsPopupOpen(): ignore the ImGuiID parameter and test for any popup.
@@ -226,7 +252,7 @@ namespace sol_ImGui
 			"MouseButtonRight", ImGuiPopupFlags_MouseButtonRight,
 			"MouseButtonMiddle", ImGuiPopupFlags_MouseButtonMiddle,
 			"MouseButtonMask_", ImGuiPopupFlags_MouseButtonMask_,
-			"MouseButtonDefault_", ImGuiPopupFlags_MouseButtonDefault_,
+			"MouseButtonDefault_", ImGuiPopupFlags_MouseButtonRight,
 			"NoOpenOverExistingPopup", ImGuiPopupFlags_NoOpenOverExistingPopup,
 			"NoOpenOverItems", ImGuiPopupFlags_NoOpenOverItems,
 			"AnyPopupId", ImGuiPopupFlags_AnyPopupId,
@@ -240,22 +266,28 @@ namespace sol_ImGui
 		Enum with a list of ImGui Selectable Flags.
 
 		@tfield int None
-		@tfield int DontClosePopups Clicking this doesn't close parent popup window
+		@tfield int NoAutoClosePopups Clicking this doesn't close parent popup window (overrides ImGuiItemFlags.AutoClosePopups)
+		@tfield int DontClosePopups Legacy name for NoAutoClosePopups.
 		@tfield int SpanAllColumns Frame will span all columns of its container table (text will still fit in current column)
 		@tfield int AllowDoubleClick Generate press events on double clicks too
 		@tfield int Disabled Cannot be selected, display grayed out text
 		@tfield int AllowOverlap  (WIP) Hit testing to allow subsequent widgets to overlap this one
+		@tfield int Highlight Make the item be displayed as if it is hovered
+		@tfield int SelectOnNav Auto-select when moved into, unless Ctrl is held. Automatic when in a BeginMultiSelect() block.
 
 		@table ImGuiSelectableFlags
 		*/
 #pragma region Selectable Flags
 		lua.new_enum("ImGuiSelectableFlags",
 			"None", ImGuiSelectableFlags_None,
-			"DontClosePopups", ImGuiSelectableFlags_DontClosePopups,
+			"NoAutoClosePopups", ImGuiSelectableFlags_NoAutoClosePopups,
+			"DontClosePopups", ImGuiSelectableFlags_NoAutoClosePopups,
 			"SpanAllColumns", ImGuiSelectableFlags_SpanAllColumns,
 			"AllowDoubleClick", ImGuiSelectableFlags_AllowDoubleClick,
 			"Disabled", ImGuiSelectableFlags_Disabled,
-			"AllowOverlap", ImGuiSelectableFlags_AllowOverlap
+			"AllowOverlap", ImGuiSelectableFlags_AllowOverlap,
+			"Highlight", ImGuiSelectableFlags_Highlight,
+			"SelectOnNav", ImGuiSelectableFlags_SelectOnNav
 		);
 #pragma endregion Selectable Flags
 
@@ -302,8 +334,11 @@ namespace sol_ImGui
 		@tfield int NoCloseWithMiddleMouseButton Disable behavior of closing tabs (that are submitted with p_open != NULL) with middle mouse button. You may handle this behavior manually on user's side with if (IsItemHovered() && IsMouseClicked(2)) *p_open = false.
 		@tfield int NoTabListScrollingButtons Disable scrolling buttons (apply when fitting policy is 
 		@tfield int NoTooltip Disable tooltips when hovering a tab
-		@tfield int FittingPolicyResizeDown Resize tabs when they don't fit
-		@tfield int FittingPolicyScroll Add scroll buttons when tabs don't fit
+		@tfield int DrawSelectedOverline Draw selected overline markers over selected tab
+		@tfield int FittingPolicyMixed Shrink down tabs when they don't fit, until width is style.TabMinWidthShrink, then enable scrolling buttons (default)
+		@tfield int FittingPolicyShrink Shrink down tabs when they don't fit
+		@tfield int FittingPolicyResizeDown Legacy name for FittingPolicyShrink.
+		@tfield int FittingPolicyScroll Enable scrolling buttons when tabs don't fit
 		@tfield int FittingPolicyMask_
 		@tfield int FittingPolicyDefault_
 
@@ -318,7 +353,10 @@ namespace sol_ImGui
 			"NoCloseWithMiddleMouseButton", ImGuiTabBarFlags_NoCloseWithMiddleMouseButton,
 			"NoTabListScrollingButtons", ImGuiTabBarFlags_NoTabListScrollingButtons,
 			"NoTooltip", ImGuiTabBarFlags_NoTooltip,
-			"FittingPolicyResizeDown", ImGuiTabBarFlags_FittingPolicyResizeDown,
+			"DrawSelectedOverline", ImGuiTabBarFlags_DrawSelectedOverline,
+			"FittingPolicyMixed", ImGuiTabBarFlags_FittingPolicyMixed,
+			"FittingPolicyShrink", ImGuiTabBarFlags_FittingPolicyShrink,
+			"FittingPolicyResizeDown", ImGuiTabBarFlags_FittingPolicyShrink,
 			"FittingPolicyScroll", ImGuiTabBarFlags_FittingPolicyScroll,
 			"FittingPolicyMask_", ImGuiTabBarFlags_FittingPolicyMask_,
 			"FittingPolicyDefault_", ImGuiTabBarFlags_FittingPolicyDefault_
@@ -433,6 +471,74 @@ namespace sol_ImGui
 			"NoSharedDelay", ImGuiHoveredFlags_NoSharedDelay
 		);
 #pragma endregion Hovered Flags
+
+		//@section ImGuiItemFlags
+		/***
+		Enum with a list of ImGui Item Flags. Use with ImGui.PushItemFlag().
+
+		@tfield int None
+		@tfield int NoTabStop Disable keyboard tabbing. This is a "lighter" version of NoNav.
+		@tfield int NoNav Disable any form of focusing (keyboard/gamepad directional navigation and SetKeyboardFocusHere() calls).
+		@tfield int NoNavDefaultFocus Disable item being a candidate for default focus (e.g. used by title bar items).
+		@tfield int ButtonRepeat Any button-like behavior will have repeat mode enabled (based on io.KeyRepeatDelay and io.KeyRepeatRate values). Note that you can also call IsItemActive() after any button to tell if it is being held.
+		@tfield int AutoClosePopups MenuItem()/Selectable() automatically close their parent popup window. Enabled by default.
+		@tfield int AllowDuplicateId Allow submitting an item with the same identifier as an item already submitted this frame without triggering a warning tooltip.
+		@tfield int Disabled Disable interactions (DOES NOT affect visuals). Prefer using BeginDisabled()/EndDisabled() which also affects visuals.
+		@tfield int LiveEditOnInputText InputText(), InputTextMultiline(): write back text to buffer while typing, instead of on validation. Enabled by default.
+		@tfield int LiveEditOnInputScalar InputFloat(), Drag/Slider (when Ctrl+Click or Enter is used to type a value): write back value while typing, instead of on validation. Disabled by default.
+		@tfield int LiveEditOnInput LiveEditOnInputText + LiveEditOnInputScalar
+
+		@table ImGuiItemFlags
+		*/
+#pragma region Item Flags
+		lua.new_enum("ImGuiItemFlags",
+			"None", ImGuiItemFlags_None,
+			"NoTabStop", ImGuiItemFlags_NoTabStop,
+			"NoNav", ImGuiItemFlags_NoNav,
+			"NoNavDefaultFocus", ImGuiItemFlags_NoNavDefaultFocus,
+			"ButtonRepeat", ImGuiItemFlags_ButtonRepeat,
+			"AutoClosePopups", ImGuiItemFlags_AutoClosePopups,
+			"AllowDuplicateId", ImGuiItemFlags_AllowDuplicateId,
+			"Disabled", ImGuiItemFlags_Disabled,
+			"LiveEditOnInputText", ImGuiItemFlags_LiveEditOnInputText,
+			"LiveEditOnInputScalar", ImGuiItemFlags_LiveEditOnInputScalar,
+			"LiveEditOnInput", ImGuiItemFlags_LiveEditOnInput
+		);
+#pragma endregion Item Flags
+
+		//@section ImGuiInputFlags
+		/***
+		Enum with a list of ImGui Input Flags. Use with ImGui.Shortcut() and ImGui.SetNextItemShortcut().
+
+		@tfield int None
+		@tfield int Repeat Enable repeat. Return true on successive repeats.
+		@tfield int RouteActive Route to active item only.
+		@tfield int RouteFocused Route to windows in the focus stack (default). Deep-most focused window takes inputs. Active item takes inputs over deep-most focused window.
+		@tfield int RouteGlobal Global route (unless a focused window or active item registered the route).
+		@tfield int RouteAlways Do not register route, poll keys directly.
+		@tfield int RouteOverFocused Option: global route: higher priority than focused route (unless active item in focused route).
+		@tfield int RouteOverActive Option: global route: higher priority than active item. Unlikely you need to use that: will interfere with every active items, e.g. Ctrl+A registered by InputText will be overridden by this.
+		@tfield int RouteUnlessBgFocused Option: global route: will not be applied if underlying background/void is focused (== no Dear ImGui windows are focused). Useful for overlay applications.
+		@tfield int RouteFromRootWindow Option: route evaluated from the point of view of root window rather than current window.
+		@tfield int Tooltip SetNextItemShortcut() only: show a tooltip when hovering item.
+
+		@table ImGuiInputFlags
+		*/
+#pragma region Input Flags
+		lua.new_enum("ImGuiInputFlags",
+			"None", ImGuiInputFlags_None,
+			"Repeat", ImGuiInputFlags_Repeat,
+			"RouteActive", ImGuiInputFlags_RouteActive,
+			"RouteFocused", ImGuiInputFlags_RouteFocused,
+			"RouteGlobal", ImGuiInputFlags_RouteGlobal,
+			"RouteAlways", ImGuiInputFlags_RouteAlways,
+			"RouteOverFocused", ImGuiInputFlags_RouteOverFocused,
+			"RouteOverActive", ImGuiInputFlags_RouteOverActive,
+			"RouteUnlessBgFocused", ImGuiInputFlags_RouteUnlessBgFocused,
+			"RouteFromRootWindow", ImGuiInputFlags_RouteFromRootWindow,
+			"Tooltip", ImGuiInputFlags_Tooltip
+		);
+#pragma endregion Input Flags
 
 
 	}

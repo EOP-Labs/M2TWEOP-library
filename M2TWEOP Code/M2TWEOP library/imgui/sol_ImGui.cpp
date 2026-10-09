@@ -8,6 +8,34 @@
 
 namespace sol_ImGui
 {
+	// Lua scripts were written against imgui 1.90, these keep that behaviour where newer imgui changed it
+
+	// 1.92.6 moved the mouse button bits: 0/1/2 used to mean left/right/middle, now 0 means right
+	static ImGuiPopupFlags convertLegacyPopupFlags(int flags)
+	{
+		if (flags & ImGuiPopupFlags_MouseButtonMask_)
+			return flags;
+		int button = flags & ImGuiPopupFlags_InvalidMask_;
+		if (button > ImGuiMouseButton_Middle)
+			button = ImGuiMouseButton_Left;
+		return (flags & ~ImGuiPopupFlags_InvalidMask_) | ((button + 1) << ImGuiPopupFlags_MouseButtonShift_);
+	}
+
+	// 1.91.8 made the transparent preview the default; Lua keeps the old opaque default unless AlphaPreview is passed
+	static constexpr int LegacyColorEditAlphaPreview = 1 << 17;
+	static ImGuiColorEditFlags convertLegacyColorEditFlags(int flags)
+	{
+		if (flags & LegacyColorEditAlphaPreview)
+			return flags & ~LegacyColorEditAlphaPreview;
+		if (flags & ImGuiColorEditFlags_AlphaMask_)
+			return flags;
+		return flags | ImGuiColorEditFlags_AlphaOpaque;
+	}
+
+	// 1.91.3 started clamping drags when v_min == v_max != 0, before that they were unclamped
+	template <typename T> static T legacyDragMin(T v_min, T v_max) { return v_min == v_max ? T(0) : v_min; }
+	template <typename T> static T legacyDragMax(T v_min, T v_max) { return v_min == v_max ? T(0) : v_max; }
+
     ImGuiIO* GetIO() { return &ImGui::GetIO(); }
 	// Windows
 	bool Begin(const std::string& name) { return ImGui::Begin(name.c_str()); }
@@ -98,11 +126,11 @@ namespace sol_ImGui
 	}
 	void AddRect(ImDrawList* drawlist, float p1X, float p1Y, float p2X, float p2y, uint32_t color, float rounding, int flags)
 	{
-		drawlist->AddRect({p1X, p1Y}, {p2X, p2y}, color, rounding, flags);
+		drawlist->AddRect({p1X, p1Y}, {p2X, p2y}, color, rounding, 1.0f, flags);
 	}
 	void AddRect(ImDrawList* drawlist, float p1X, float p1Y, float p2X, float p2y, uint32_t color, float rounding, int flags, float thickness)
 	{
-		drawlist->AddRect({p1X, p1Y}, {p2X, p2y}, color, rounding, flags, thickness);
+		drawlist->AddRect({p1X, p1Y}, {p2X, p2y}, color, rounding, thickness, flags);
 	}
 	void AddRectFilled(ImDrawList* drawlist, float p1X, float p1Y, float p2X, float p2y, uint32_t color)
 	{
@@ -207,36 +235,36 @@ namespace sol_ImGui
 	}
 	void AddEllipse(ImDrawList* drawlist, float centerX, float centerY, float radiusX, float radiusY, uint32_t color)
 	{
-		drawlist->AddEllipse({centerX, centerY}, radiusX, radiusY, color);
+		drawlist->AddEllipse({centerX, centerY}, {radiusX, radiusY}, color);
 	}
 	void AddEllipse(ImDrawList* drawlist, float centerX, float centerY, float radiusX, float radiusY,
 		 uint32_t color, float rotation)
 	{
-		drawlist->AddEllipse({centerX, centerY}, radiusX, radiusY, color, rotation);
+		drawlist->AddEllipse({centerX, centerY}, {radiusX, radiusY}, color, rotation);
 	}
 	void AddEllipse(ImDrawList* drawlist, float centerX, float centerY, float radiusX, float radiusY,
 		 uint32_t color, float rotation, int numSegments)
 	{
-		drawlist->AddEllipse({centerX, centerY}, radiusX, radiusY, color, rotation, numSegments);
+		drawlist->AddEllipse({centerX, centerY}, {radiusX, radiusY}, color, rotation, numSegments);
 	}
 	void AddEllipse(ImDrawList* drawlist, float centerX, float centerY, float radiusX, float radiusY,
 		 uint32_t color, float rotation, int numSegments, float thickness)
 	{
-		drawlist->AddEllipse({centerX, centerY}, radiusX, radiusY, color, rotation, numSegments, thickness);
+		drawlist->AddEllipse({centerX, centerY}, {radiusX, radiusY}, color, rotation, numSegments, thickness);
 	}
 	void AddEllipseFilled(ImDrawList* drawlist, float centerX, float centerY, float radiusX, float radiusY, uint32_t color)
 	{
-		drawlist->AddEllipseFilled({centerX, centerY}, radiusX, radiusY, color);
+		drawlist->AddEllipseFilled({centerX, centerY}, {radiusX, radiusY}, color);
 	}
 	void AddEllipseFilled(ImDrawList* drawlist, float centerX, float centerY, float radiusX, float radiusY,
 		 uint32_t color, float rotation)
 	{
-		drawlist->AddEllipseFilled({centerX, centerY}, radiusX, radiusY, color, rotation);
+		drawlist->AddEllipseFilled({centerX, centerY}, {radiusX, radiusY}, color, rotation);
 	}
 	void AddEllipseFilled(ImDrawList* drawlist, float centerX, float centerY, float radiusX, float radiusY,
 		 uint32_t color, float rotation, int numSegments)
 	{
-		drawlist->AddEllipseFilled({centerX, centerY}, radiusX, radiusY, color, rotation, numSegments);
+		drawlist->AddEllipseFilled({centerX, centerY}, {radiusX, radiusY}, color, rotation, numSegments);
 	}
 	void AddText(ImDrawList* drawlist, float posX, float posY, uint32_t color, const char* textBegin)
 	{
@@ -286,17 +314,26 @@ namespace sol_ImGui
 	{
 		drawlist->PathFillConvex(color);
 	}
+	void PathFillConcave(ImDrawList* drawlist, uint32_t color)
+	{
+		drawlist->PathFillConcave(color);
+	}
 	void PathStroke(ImDrawList* drawlist, uint32_t color)
 	{
 		drawlist->PathStroke(color);
 	}
+	// Lua scripts pass raw ints; ImDrawFlags_Closed used to be 1 << 0 (moved in imgui 1.92.8)
+	static ImDrawFlags convertLegacyStrokeFlags(int flags)
+	{
+		return (flags & 1) ? ((flags & ~1) | ImDrawFlags_Closed) : flags;
+	}
 	void PathStroke(ImDrawList* drawlist, uint32_t color, int flags)
 	{
-		drawlist->PathStroke(color, flags);
+		drawlist->PathStroke(color, 1.0f, convertLegacyStrokeFlags(flags));
 	}
 	void PathStroke(ImDrawList* drawlist, uint32_t color, int flags, float thickness)
 	{
-		drawlist->PathStroke(color, flags, thickness);
+		drawlist->PathStroke(color, thickness, convertLegacyStrokeFlags(flags));
 	}
 	void PathArcTo(ImDrawList* drawlist, float centerX, float centerY, float radius, float aMin, float aMax)
 	{
@@ -313,12 +350,12 @@ namespace sol_ImGui
 	void PathEllipticalArcTo(ImDrawList* drawlist, float centerX, float centerY, float radiusX, float radiusY, float rotation,
 	     float aMin, float aMax)
 	{
-		drawlist->PathEllipticalArcTo({centerX, centerY}, radiusX, radiusY, rotation, aMin, aMax);
+		drawlist->PathEllipticalArcTo({centerX, centerY}, {radiusX, radiusY}, rotation, aMin, aMax);
 	}
 	void PathEllipticalArcTo(ImDrawList* drawlist, float centerX, float centerY, float radiusX, float radiusY, float rotation,
 	     float aMin, float aMax, int numSegments)
 	{
-		drawlist->PathEllipticalArcTo({centerX, centerY}, radiusX, radiusY, rotation, aMin, aMax, numSegments);
+		drawlist->PathEllipticalArcTo({centerX, centerY}, {radiusX, radiusY}, rotation, aMin, aMax, numSegments);
 	}
 	void PathBezierCubicCurveTo(ImDrawList* drawlist, float p2X, float p2Y, float p3X, float p3Y, float p4X, float p4Y)
 	{
@@ -409,7 +446,14 @@ namespace sol_ImGui
 	void SetScrollFromPosY(float localY, float centerYRatio) { ImGui::SetScrollFromPosY(localY, centerYRatio); }
 
 	// Parameters stacks (shared)
-	void PushFont(ImFont* pFont) { ImGui::PushFont(pFont); }
+	void PushFont(ImFont* pFont)
+	{
+		// Keep the pre-1.92 meaning of PushFont(nil): push the default font
+		if (!pFont)
+			pFont = ImGui::GetIO().FontDefault ? ImGui::GetIO().FontDefault : ImGui::GetIO().Fonts->Fonts[0];
+		ImGui::PushFont(pFont, pFont->LegacySize);
+	}
+	void PushFont(ImFont* pFont, float fontSize) { ImGui::PushFont(pFont, fontSize); }
 	void PopFont() { ImGui::PopFont(); }
 #ifdef SOL_IMGUI_USE_COLOR_U32
 	void PushStyleColor(int idx, int col) { ImGui::PushStyleColor(static_cast<ImGuiCol>(idx), ImU32(col)); }
@@ -419,12 +463,16 @@ namespace sol_ImGui
 	void PopStyleColor(int count) { ImGui::PopStyleColor(count); }
 	void PushStyleVar(int idx, float val) { ImGui::PushStyleVar(static_cast<ImGuiStyleVar>(idx), val); }
 	void PushStyleVar(int idx, float valX, float valY) { ImGui::PushStyleVar(static_cast<ImGuiStyleVar>(idx), { valX, valY }); }
+	void PushStyleVarX(int idx, float valX) { ImGui::PushStyleVarX(static_cast<ImGuiStyleVar>(idx), valX); }
+	void PushStyleVarY(int idx, float valY) { ImGui::PushStyleVarY(static_cast<ImGuiStyleVar>(idx), valY); }
 	void PopStyleVar() { ImGui::PopStyleVar(); }
 	void PopStyleVar(int count) { ImGui::PopStyleVar(count); }
-	void PushTabStop(bool tabStop) { ImGui::PushTabStop(tabStop); }
-	void PopTabStop() { ImGui::PopTabStop(); }
-	void PushButtonRepeat(bool repeat) { ImGui::PushButtonRepeat(repeat); }
-	void PopButtonRepeat() { ImGui::PopButtonRepeat(); }
+	void PushTabStop(bool tabStop) { ImGui::PushItemFlag(ImGuiItemFlags_NoTabStop, !tabStop); }
+	void PopTabStop() { ImGui::PopItemFlag(); }
+	void PushButtonRepeat(bool repeat) { ImGui::PushItemFlag(ImGuiItemFlags_ButtonRepeat, repeat); }
+	void PopButtonRepeat() { ImGui::PopItemFlag(); }
+	void PushItemFlag(int option, bool enabled) { ImGui::PushItemFlag(static_cast<ImGuiItemFlags>(option), enabled); }
+	void PopItemFlag() { ImGui::PopItemFlag(); }
 	void PushItemWidth(float itemWidth) { ImGui::PushItemWidth(itemWidth); }
 	// Parameters stacks (current window)
 	void PopItemWidth() { ImGui::PopItemWidth(); }
@@ -498,6 +546,9 @@ namespace sol_ImGui
 	void LabelText(const std::string& label, const std::string& text) { ImGui::LabelText(label.c_str(), text.c_str()); }
 	void BulletText(const std::string& text) { ImGui::BulletText(text.c_str()); }
 	void SeparatorText(const std::string& text) { ImGui::SeparatorText(text.c_str()); }
+	bool TextLink(const std::string& label) { return ImGui::TextLink(label.c_str()); }
+	bool TextLinkOpenURL(const std::string& label) { return ImGui::TextLinkOpenURL(label.c_str()); }
+	bool TextLinkOpenURL(const std::string& label, const std::string& url) { return ImGui::TextLinkOpenURL(label.c_str(), url.c_str()); }
 
 	// Widgets: Main
 	bool Button(const std::string& label)
@@ -526,22 +577,22 @@ namespace sol_ImGui
 	// Widgets: Images
 	void Image(void* texture, float x, float y)
 	{
-		ImGui::Image(texture, ImVec2(x, y));
+		ImGui::Image((ImTextureID)(intptr_t)texture, ImVec2(x, y));
 	}
 	void Image(void* texture, float x, float y, float uv0X, float uv0Y)
 	{
-		ImGui::Image(texture, ImVec2(x, y), ImVec2(uv0X, uv0Y));
+		ImGui::Image((ImTextureID)(intptr_t)texture, ImVec2(x, y), ImVec2(uv0X, uv0Y));
 	}
 	void Image(void* texture, float x, float y, float uv0X, float uv0Y, float uv1X, float uv1Y)
 	{
-		ImGui::Image(texture, ImVec2(x, y), ImVec2(uv0X, uv0Y), ImVec2(uv1X, uv1Y));
+		ImGui::Image((ImTextureID)(intptr_t)texture, ImVec2(x, y), ImVec2(uv0X, uv0Y), ImVec2(uv1X, uv1Y));
 	}
 	bool ImageButton(const std::string& label, void* texture, float sizeX, float sizeY)
 	{
 		ImVec2 buttonSize;
 		buttonSize.x = sizeX;
 		buttonSize.y = sizeY;
-		return ImGui::ImageButton(label.c_str(), texture, buttonSize);
+		return ImGui::ImageButton(label.c_str(), (ImTextureID)(intptr_t)texture, buttonSize);
 	}
 
 	// Widgets: Combo Box
@@ -596,9 +647,9 @@ namespace sol_ImGui
 	std::tuple<float, bool> DragFloat(const std::string& label, float v) { bool used = ImGui::DragFloat(label.c_str(), &v); return std::make_tuple(v, used); }
 	std::tuple<float, bool> DragFloat(const std::string& label, float v, float v_speed) { bool used = ImGui::DragFloat(label.c_str(), &v, v_speed); return std::make_tuple(v, used); }
 	std::tuple<float, bool> DragFloat(const std::string& label, float v, float v_speed, float v_min) { bool used = ImGui::DragFloat(label.c_str(), &v, v_speed, v_min); return std::make_tuple(v, used); }
-	std::tuple<float, bool> DragFloat(const std::string& label, float v, float v_speed, float v_min, float v_max) { bool used = ImGui::DragFloat(label.c_str(), &v, v_speed, v_min, v_max); return std::make_tuple(v, used); }
-	std::tuple<float, bool> DragFloat(const std::string& label, float v, float v_speed, float v_min, float v_max, const std::string& format) { bool used = ImGui::DragFloat(label.c_str(), &v, v_speed, v_min, v_max, format.c_str()); return std::make_tuple(v, used); }
-	std::tuple<float, bool> DragFloat(const std::string& label, float v, float v_speed, float v_min, float v_max, const std::string& format, float power) { bool used = ImGui::DragFloat(label.c_str(), &v, v_speed, v_min, v_max, format.c_str(), power); return std::make_tuple(v, used); }
+	std::tuple<float, bool> DragFloat(const std::string& label, float v, float v_speed, float v_min, float v_max) { bool used = ImGui::DragFloat(label.c_str(), &v, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max)); return std::make_tuple(v, used); }
+	std::tuple<float, bool> DragFloat(const std::string& label, float v, float v_speed, float v_min, float v_max, const std::string& format) { bool used = ImGui::DragFloat(label.c_str(), &v, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max), format.c_str()); return std::make_tuple(v, used); }
+	std::tuple<float, bool> DragFloat(const std::string& label, float v, float v_speed, float v_min, float v_max, const std::string& format, float power) { bool used = ImGui::DragFloat(label.c_str(), &v, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max), format.c_str(), power); return std::make_tuple(v, used); }
 	std::tuple<sol::as_table_t<std::vector<float>>, bool> DragFloat2(const std::string& label, const sol::table& v)
 	{
 		const lua_Number	v1{ v[1].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
@@ -643,7 +694,7 @@ namespace sol_ImGui
 		const lua_Number	v1{ v[1].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			v2{ v[2].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float value[2] = { float(v1), float(v2) };
-		bool used = ImGui::DragFloat2(label.c_str(), value, v_speed, v_min, v_max);
+		bool used = ImGui::DragFloat2(label.c_str(), value, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max));
 
 		sol::as_table_t float2 = sol::as_table(std::vector<float>{
 			value[0], value[1]
@@ -656,7 +707,7 @@ namespace sol_ImGui
 		const lua_Number	v1{ v[1].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			v2{ v[2].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float value[2] = { float(v1), float(v2) };
-		bool used = ImGui::DragFloat2(label.c_str(), value, v_speed, v_min, v_max, format.c_str());
+		bool used = ImGui::DragFloat2(label.c_str(), value, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max), format.c_str());
 
 		sol::as_table_t float2 = sol::as_table(std::vector<float>{
 			value[0], value[1]
@@ -669,7 +720,7 @@ namespace sol_ImGui
 		const lua_Number	v1{ v[1].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			v2{ v[2].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float value[2] = { float(v1), float(v2) };
-		bool used = ImGui::DragFloat2(label.c_str(), value, v_speed, v_min, v_max, format.c_str(), power);
+		bool used = ImGui::DragFloat2(label.c_str(), value, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max), format.c_str(), power);
 
 		sol::as_table_t float2 = sol::as_table(std::vector<float>{
 			value[0], value[1]
@@ -725,7 +776,7 @@ namespace sol_ImGui
 			v2{ v[2].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			v3{ v[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float value[3] = { float(v1), float(v2), float(v3) };
-		bool used = ImGui::DragFloat3(label.c_str(), value, v_speed, v_min, v_max);
+		bool used = ImGui::DragFloat3(label.c_str(), value, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max));
 
 		sol::as_table_t float3 = sol::as_table(std::vector<float>{
 			value[0], value[1], value[2]
@@ -739,7 +790,7 @@ namespace sol_ImGui
 			v2{ v[2].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			v3{ v[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float value[3] = { float(v1), float(v2), float(v3) };
-		bool used = ImGui::DragFloat3(label.c_str(), value, v_speed, v_min, v_max, format.c_str());
+		bool used = ImGui::DragFloat3(label.c_str(), value, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max), format.c_str());
 
 		sol::as_table_t float3 = sol::as_table(std::vector<float>{
 			value[0], value[1], value[2]
@@ -753,7 +804,7 @@ namespace sol_ImGui
 			v2{ v[2].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			v3{ v[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float value[3] = { float(v1), float(v2), float(v3) };
-		bool used = ImGui::DragFloat3(label.c_str(), value, v_speed, v_min, v_max, format.c_str(), power);
+		bool used = ImGui::DragFloat3(label.c_str(), value, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max), format.c_str(), power);
 
 		sol::as_table_t float3 = sol::as_table(std::vector<float>{
 			value[0], value[1], value[2]
@@ -813,7 +864,7 @@ namespace sol_ImGui
 			v3{ v[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			v4{ v[4].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float value[4] = { float(v1), float(v2), float(v3), float(v4) };
-		bool used = ImGui::DragFloat4(label.c_str(), value, v_speed, v_min, v_max);
+		bool used = ImGui::DragFloat4(label.c_str(), value, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max));
 
 		sol::as_table_t float4 = sol::as_table(std::vector<float>{
 			value[0], value[1], value[2], value[3]
@@ -828,7 +879,7 @@ namespace sol_ImGui
 			v3{ v[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			v4{ v[4].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float value[4] = { float(v1), float(v2), float(v3), float(v4) };
-		bool used = ImGui::DragFloat4(label.c_str(), value, v_speed, v_min, v_max, format.c_str());
+		bool used = ImGui::DragFloat4(label.c_str(), value, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max), format.c_str());
 
 		sol::as_table_t float4 = sol::as_table(std::vector<float>{
 			value[0], value[1], value[2], value[3]
@@ -843,7 +894,7 @@ namespace sol_ImGui
 			v3{ v[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			v4{ v[4].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float value[4] = { float(v1), float(v2), float(v3), float(v4) };
-		bool used = ImGui::DragFloat4(label.c_str(), value, v_speed, v_min, v_max, format.c_str(), power);
+		bool used = ImGui::DragFloat4(label.c_str(), value, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max), format.c_str(), power);
 
 		sol::as_table_t float4 = sol::as_table(std::vector<float>{
 			value[0], value[1], value[2], value[3]
@@ -855,8 +906,8 @@ namespace sol_ImGui
 	std::tuple<int, bool> DragInt(const std::string& label, int v) { bool used = ImGui::DragInt(label.c_str(), &v); return std::make_tuple(v, used); }
 	std::tuple<int, bool> DragInt(const std::string& label, int v, float v_speed) { bool used = ImGui::DragInt(label.c_str(), &v, v_speed); return std::make_tuple(v, used); }
 	std::tuple<int, bool> DragInt(const std::string& label, int v, float v_speed, int v_min) { bool used = ImGui::DragInt(label.c_str(), &v, v_speed, v_min); return std::make_tuple(v, used); }
-	std::tuple<int, bool> DragInt(const std::string& label, int v, float v_speed, int v_min, int v_max) { bool used = ImGui::DragInt(label.c_str(), &v, v_speed, v_min, v_max); return std::make_tuple(v, used); }
-	std::tuple<int, bool> DragInt(const std::string& label, int v, float v_speed, int v_min, int v_max, const std::string& format) { bool used = ImGui::DragInt(label.c_str(), &v, v_speed, v_min, v_max, format.c_str()); return std::make_tuple(v, used); }
+	std::tuple<int, bool> DragInt(const std::string& label, int v, float v_speed, int v_min, int v_max) { bool used = ImGui::DragInt(label.c_str(), &v, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max)); return std::make_tuple(v, used); }
+	std::tuple<int, bool> DragInt(const std::string& label, int v, float v_speed, int v_min, int v_max, const std::string& format) { bool used = ImGui::DragInt(label.c_str(), &v, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max), format.c_str()); return std::make_tuple(v, used); }
 	std::tuple<sol::as_table_t<std::vector<int>>, bool> DragInt2(const std::string& label, const sol::table& v)
 	{
 		const lua_Number	v1{ v[1].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
@@ -901,7 +952,7 @@ namespace sol_ImGui
 		const lua_Number	v1{ v[1].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			v2{ v[2].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		int value[2] = { int(v1), int(v2) };
-		bool used = ImGui::DragInt2(label.c_str(), value, v_speed, v_min, v_max);
+		bool used = ImGui::DragInt2(label.c_str(), value, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max));
 
 		sol::as_table_t int2 = sol::as_table(std::vector<int>{
 			value[0], value[1]
@@ -914,7 +965,7 @@ namespace sol_ImGui
 		const lua_Number	v1{ v[1].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			v2{ v[2].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		int value[2] = { int(v1), int(v2) };
-		bool used = ImGui::DragInt2(label.c_str(), value, v_speed, v_min, v_max, format.c_str());
+		bool used = ImGui::DragInt2(label.c_str(), value, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max), format.c_str());
 
 		sol::as_table_t int2 = sol::as_table(std::vector<int>{
 			value[0], value[1]
@@ -970,7 +1021,7 @@ namespace sol_ImGui
 			v2{ v[2].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			v3{ v[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		int value[3] = { int(v1), int(v2), int(v3) };
-		bool used = ImGui::DragInt3(label.c_str(), value, v_speed, v_min, v_max);
+		bool used = ImGui::DragInt3(label.c_str(), value, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max));
 
 		sol::as_table_t int3 = sol::as_table(std::vector<int>{
 			value[0], value[1], value[2]
@@ -984,7 +1035,7 @@ namespace sol_ImGui
 			v2{ v[2].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			v3{ v[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		int value[3] = { int(v1), int(v2), int(v3) };
-		bool used = ImGui::DragInt3(label.c_str(), value, v_speed, v_min, v_max, format.c_str());
+		bool used = ImGui::DragInt3(label.c_str(), value, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max), format.c_str());
 
 		sol::as_table_t int3 = sol::as_table(std::vector<int>{
 			value[0], value[1], value[2]
@@ -1044,7 +1095,7 @@ namespace sol_ImGui
 			v3{ v[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			v4{ v[4].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		int value[4] = { int(v1), int(v2), int(v3), int(v4) };
-		bool used = ImGui::DragInt4(label.c_str(), value, v_speed, v_min, v_max);
+		bool used = ImGui::DragInt4(label.c_str(), value, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max));
 
 		sol::as_table_t int4 = sol::as_table(std::vector<int>{
 			value[0], value[1], value[2], value[3]
@@ -1059,7 +1110,7 @@ namespace sol_ImGui
 			v3{ v[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			v4{ v[4].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		int value[4] = { int(v1), int(v2), int(v3), int(v4) };
-		bool used = ImGui::DragInt4(label.c_str(), value, v_speed, v_min, v_max, format.c_str());
+		bool used = ImGui::DragInt4(label.c_str(), value, v_speed, legacyDragMin(v_min, v_max), legacyDragMax(v_min, v_max), format.c_str());
 
 		sol::as_table_t int4 = sol::as_table(std::vector<int>{
 			value[0], value[1], value[2], value[3]
@@ -1302,16 +1353,28 @@ namespace sol_ImGui
 
 	
 	// Widgets: Input with Keyboard
+	// ImGui writes up to buf_size bytes into the buffer, so the string has to own that much memory
+	static char* prepareInputBuffer(std::string& text, unsigned int buf_size)
+	{
+		if (text.size() < buf_size)
+			text.resize(buf_size, '\0');
+		return text.data();
+	}
+	static std::string& finishInputBuffer(std::string& text)
+	{
+		text.resize(strlen(text.c_str()));
+		return text;
+	}
 	std::tuple<std::string, bool> InputText(const std::string& label, std::string text)
 	{
 		bool selected = ImGui::InputText(label.c_str(), &text); return std::make_tuple(text, selected);
 	}
-	std::tuple<std::string, bool> InputText(const std::string& label, std::string text, unsigned int buf_size, int flags) { bool selected = ImGui::InputText(label.c_str(), &text[0], buf_size, static_cast<ImGuiInputTextFlags>(flags)); return std::make_tuple(text, selected); }
-	std::tuple<std::string, bool> InputTextMultiline(const std::string& label, std::string text, unsigned int buf_size) { bool selected = ImGui::InputTextMultiline(label.c_str(), &text[0], buf_size); return std::make_tuple(text, selected); }
-	std::tuple<std::string, bool> InputTextMultiline(const std::string& label, std::string text, unsigned int buf_size, float sizeX, float sizeY) { bool selected = ImGui::InputTextMultiline(label.c_str(), &text[0], buf_size, { sizeX, sizeY }); return std::make_tuple(text, selected); }
-	std::tuple<std::string, bool> InputTextMultiline(const std::string& label, std::string text, unsigned int buf_size, float sizeX, float sizeY, int flags) { bool selected = ImGui::InputTextMultiline(label.c_str(), &text[0], buf_size, { sizeX, sizeY }, static_cast<ImGuiInputTextFlags>(flags)); return std::make_tuple(text, selected); }
-	std::tuple<std::string, bool> InputTextWithHint(const std::string& label, const std::string& hint, std::string text, unsigned int buf_size) { bool selected = ImGui::InputTextWithHint(label.c_str(), hint.c_str(), &text[0], buf_size); return std::make_tuple(text, selected); }
-	std::tuple<std::string, bool> InputTextWithHint(const std::string& label, const std::string& hint, std::string text, unsigned int buf_size, int flags) { bool selected = ImGui::InputTextWithHint(label.c_str(), hint.c_str(), &text[0], buf_size, static_cast<ImGuiInputTextFlags>(flags)); return std::make_tuple(text, selected); }
+	std::tuple<std::string, bool> InputText(const std::string& label, std::string text, unsigned int buf_size, int flags) { bool selected = ImGui::InputText(label.c_str(), prepareInputBuffer(text, buf_size), buf_size, static_cast<ImGuiInputTextFlags>(flags)); return std::make_tuple(finishInputBuffer(text), selected); }
+	std::tuple<std::string, bool> InputTextMultiline(const std::string& label, std::string text, unsigned int buf_size) { bool selected = ImGui::InputTextMultiline(label.c_str(), prepareInputBuffer(text, buf_size), buf_size); return std::make_tuple(finishInputBuffer(text), selected); }
+	std::tuple<std::string, bool> InputTextMultiline(const std::string& label, std::string text, unsigned int buf_size, float sizeX, float sizeY) { bool selected = ImGui::InputTextMultiline(label.c_str(), prepareInputBuffer(text, buf_size), buf_size, { sizeX, sizeY }); return std::make_tuple(finishInputBuffer(text), selected); }
+	std::tuple<std::string, bool> InputTextMultiline(const std::string& label, std::string text, unsigned int buf_size, float sizeX, float sizeY, int flags) { bool selected = ImGui::InputTextMultiline(label.c_str(), prepareInputBuffer(text, buf_size), buf_size, { sizeX, sizeY }, static_cast<ImGuiInputTextFlags>(flags)); return std::make_tuple(finishInputBuffer(text), selected); }
+	std::tuple<std::string, bool> InputTextWithHint(const std::string& label, const std::string& hint, std::string text, unsigned int buf_size) { bool selected = ImGui::InputTextWithHint(label.c_str(), hint.c_str(), prepareInputBuffer(text, buf_size), buf_size); return std::make_tuple(finishInputBuffer(text), selected); }
+	std::tuple<std::string, bool> InputTextWithHint(const std::string& label, const std::string& hint, std::string text, unsigned int buf_size, int flags) { bool selected = ImGui::InputTextWithHint(label.c_str(), hint.c_str(), prepareInputBuffer(text, buf_size), buf_size, static_cast<ImGuiInputTextFlags>(flags)); return std::make_tuple(finishInputBuffer(text), selected); }
 	std::tuple<float, bool> InputFloat(const std::string& label, float v) { bool selected = ImGui::InputFloat(label.c_str(), &v); return std::make_tuple(v, selected); }
 	std::tuple<float, bool> InputFloat(const std::string& label, float v, float step) { bool selected = ImGui::InputFloat(label.c_str(), &v, step); return std::make_tuple(v, selected); }
 	std::tuple<float, bool> InputFloat(const std::string& label, float v, float step, float step_fast) { bool selected = ImGui::InputFloat(label.c_str(), &v, step, step_fast); return std::make_tuple(v, selected); }
@@ -1546,7 +1609,7 @@ namespace sol_ImGui
 			g{ col[2].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			b{ col[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float color[3] = { float(r), float(g), float(b) };
-		bool used = ImGui::ColorEdit3(label.c_str(), color);
+		bool used = ImGui::ColorEdit3(label.c_str(), color, convertLegacyColorEditFlags(0));
 
 		sol::as_table_t rgb = sol::as_table(std::vector<float>{
 			color[0], color[1], color[2]
@@ -1560,7 +1623,7 @@ namespace sol_ImGui
 			g{ col[2].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			b{ col[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float color[3] = { float(r), float(g), float(b) };
-		bool used = ImGui::ColorEdit3(label.c_str(), color, static_cast<ImGuiColorEditFlags>(flags));
+		bool used = ImGui::ColorEdit3(label.c_str(), color, convertLegacyColorEditFlags(flags));
 
 		sol::as_table_t rgb = sol::as_table(std::vector<float>{
 			color[0], color[1], color[2]
@@ -1575,7 +1638,7 @@ namespace sol_ImGui
 			b{ col[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			a{ col[4].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float color[4] = { float(r), float(g), float(b), float(a) };
-		bool used = ImGui::ColorEdit4(label.c_str(), color);
+		bool used = ImGui::ColorEdit4(label.c_str(), color, convertLegacyColorEditFlags(0));
 
 		sol::as_table_t rgba = sol::as_table(std::vector<float>{
 			color[0], color[1], color[2], color[3]
@@ -1590,7 +1653,7 @@ namespace sol_ImGui
 			b{ col[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			a{ col[4].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float color[4] = { float(r), float(g), float(b), float(a) };
-		bool used = ImGui::ColorEdit4(label.c_str(), color, static_cast<ImGuiColorEditFlags>(flags));
+		bool used = ImGui::ColorEdit4(label.c_str(), color, convertLegacyColorEditFlags(flags));
 
 		sol::as_table_t rgba = sol::as_table(std::vector<float>{
 			color[0], color[1], color[2], color[3]
@@ -1604,7 +1667,7 @@ namespace sol_ImGui
 			g{ col[2].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			b{ col[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float color[3] = { float(r), float(g), float(b) };
-		bool used = ImGui::ColorPicker3(label.c_str(), color);
+		bool used = ImGui::ColorPicker3(label.c_str(), color, convertLegacyColorEditFlags(0));
 
 		sol::as_table_t rgb = sol::as_table(std::vector<float>{
 			color[0], color[1], color[2]
@@ -1618,7 +1681,7 @@ namespace sol_ImGui
 			g{ col[2].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			b{ col[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float color[3] = { float(r), float(g), float(b) };
-		bool used = ImGui::ColorPicker3(label.c_str(), color, static_cast<ImGuiColorEditFlags>(flags));
+		bool used = ImGui::ColorPicker3(label.c_str(), color, convertLegacyColorEditFlags(flags));
 
 		sol::as_table_t rgb = sol::as_table(std::vector<float>{
 			color[0], color[1], color[2]
@@ -1633,7 +1696,7 @@ namespace sol_ImGui
 			b{ col[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			a{ col[4].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float color[4] = { float(r), float(g), float(b), float(a) };
-		bool used = ImGui::ColorPicker4(label.c_str(), color);
+		bool used = ImGui::ColorPicker4(label.c_str(), color, convertLegacyColorEditFlags(0));
 
 		sol::as_table_t rgba = sol::as_table(std::vector<float>{
 			color[0], color[1], color[2], color[3]
@@ -1648,7 +1711,7 @@ namespace sol_ImGui
 			b{ col[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			a{ col[4].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		float color[4] = { float(r), float(g), float(b), float(a) };
-		bool used = ImGui::ColorPicker4(label.c_str(), color, static_cast<ImGuiColorEditFlags>(flags));
+		bool used = ImGui::ColorPicker4(label.c_str(), color, convertLegacyColorEditFlags(flags));
 
 		sol::as_table_t rgba = sol::as_table(std::vector<float>{
 			color[0], color[1], color[2], color[3]
@@ -1663,7 +1726,7 @@ namespace sol_ImGui
 			b{ col[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			a{ col[4].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		const ImVec4 color{ float(r), float(g), float(b), float(a) };
-		return ImGui::ColorButton(desc_id.c_str(), color);
+		return ImGui::ColorButton(desc_id.c_str(), color, convertLegacyColorEditFlags(0));
 	}
 	bool ColorButton(const std::string& desc_id, const sol::table& col, int flags)
 	{
@@ -1672,7 +1735,7 @@ namespace sol_ImGui
 			b{ col[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			a{ col[4].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		const ImVec4 color{ float(r), float(g), float(b), float(a) };
-		return ImGui::ColorButton(desc_id.c_str(), color, static_cast<ImGuiColorEditFlags>(flags));
+		return ImGui::ColorButton(desc_id.c_str(), color, convertLegacyColorEditFlags(flags));
 	}
 	bool ColorButton(const std::string& desc_id, const sol::table& col, int flags, float sizeX, float sizeY)
 	{
@@ -1681,9 +1744,9 @@ namespace sol_ImGui
 			b{ col[3].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) },
 			a{ col[4].get<std::optional<lua_Number>>().value_or(static_cast<lua_Number>(0)) };
 		const ImVec4 color{ float(r), float(g), float(b), float(a) };
-		return ImGui::ColorButton(desc_id.c_str(), color, static_cast<ImGuiColorEditFlags>(flags), { sizeX, sizeY });
+		return ImGui::ColorButton(desc_id.c_str(), color, convertLegacyColorEditFlags(flags), { sizeX, sizeY });
 	}
-	void SetColorEditOptions(int flags) { ImGui::SetColorEditOptions(static_cast<ImGuiColorEditFlags>(flags)); }
+	void SetColorEditOptions(int flags) { ImGui::SetColorEditOptions(flags & ~LegacyColorEditAlphaPreview); }
 
 	// Widgets: Trees
 	bool TreeNode(const std::string& label) { return ImGui::TreeNode(label.c_str()); }
@@ -1793,19 +1856,19 @@ namespace sol_ImGui
 	void OpenPopup(const std::string& str_id, int popup_flags) { ImGui::OpenPopup(str_id.c_str(), static_cast<ImGuiPopupFlags>(popup_flags)); }
 	void OpenPopupOnItemClick() { ImGui::OpenPopupOnItemClick(); };
 	void OpenPopupOnItemClick(const std::string& str_id) { ImGui::OpenPopupOnItemClick(str_id.c_str()); };
-	void OpenPopupOnItemClick(const std::string& str_id, int popup_flags) { ImGui::OpenPopupOnItemClick(str_id.c_str(), static_cast<ImGuiPopupFlags>(popup_flags)); };
+	void OpenPopupOnItemClick(const std::string& str_id, int popup_flags) { ImGui::OpenPopupOnItemClick(str_id.c_str(), convertLegacyPopupFlags(popup_flags)); };
 	void CloseCurrentPopup() { ImGui::CloseCurrentPopup(); }
 
 	// Popups: open+begin combined functions helpers
 	bool BeginPopupContextItem() { return ImGui::BeginPopupContextItem(); }
 	bool BeginPopupContextItem(const std::string& str_id) { return ImGui::BeginPopupContextItem(str_id.c_str()); }
-	bool BeginPopupContextItem(const std::string& str_id, int popup_flags) { return ImGui::BeginPopupContextItem(str_id.c_str(), static_cast<ImGuiPopupFlags>(popup_flags)); }
+	bool BeginPopupContextItem(const std::string& str_id, int popup_flags) { return ImGui::BeginPopupContextItem(str_id.c_str(), convertLegacyPopupFlags(popup_flags)); }
 	bool BeginPopupContextWindow() { return ImGui::BeginPopupContextWindow(); }
 	bool BeginPopupContextWindow(const std::string& str_id) { return ImGui::BeginPopupContextWindow(str_id.c_str()); }
-	bool BeginPopupContextWindow(const std::string& str_id, int popup_flags) { return ImGui::BeginPopupContextWindow(str_id.c_str(), static_cast<ImGuiPopupFlags>(popup_flags)); }
+	bool BeginPopupContextWindow(const std::string& str_id, int popup_flags) { return ImGui::BeginPopupContextWindow(str_id.c_str(), convertLegacyPopupFlags(popup_flags)); }
 	bool BeginPopupContextVoid() { return ImGui::BeginPopupContextVoid(); }
 	bool BeginPopupContextVoid(const std::string& str_id) { return ImGui::BeginPopupContextVoid(str_id.c_str()); }
-	bool BeginPopupContextVoid(const std::string& str_id, int popup_flags) { return ImGui::BeginPopupContextVoid(str_id.c_str(), static_cast<ImGuiPopupFlags>(popup_flags)); }
+	bool BeginPopupContextVoid(const std::string& str_id, int popup_flags) { return ImGui::BeginPopupContextVoid(str_id.c_str(), convertLegacyPopupFlags(popup_flags)); }
 
 	// Popups: query functions
 	bool IsPopupOpen(const std::string& str_id) { return ImGui::IsPopupOpen(str_id.c_str()); }
@@ -1837,6 +1900,7 @@ namespace sol_ImGui
 	const ImGuiTableColumnSortSpecs* GetSortSpecs(ImGuiTableSortSpecs* tablesort, int index){return &tablesort->Specs[index];}
 	ImGuiTableSortSpecs* TableGetSortSpecs(){ return ImGui::TableGetSortSpecs(); }
 	int TableGetColumnCount(){ return ImGui::TableGetColumnCount(); }
+	int TableGetHoveredColumn(){ return ImGui::TableGetHoveredColumn(); }
 	int TableGetColumnIndex(){ return ImGui::TableGetColumnIndex(); }
 	int TableGetRowIndex(){ return ImGui::TableGetRowIndex(); }
 	const char* TableGetColumnName(){ return ImGui::TableGetColumnName(); }
@@ -1985,6 +2049,11 @@ namespace sol_ImGui
 	bool IsKeyPressed(int user_key_index) { return ImGui::IsKeyPressed(static_cast<ImGuiKey>(user_key_index));}
 	bool IsKeyPressed(int user_key_index, bool repeat) { return ImGui::IsKeyPressed(static_cast<ImGuiKey>(user_key_index), repeat); }
 	bool IsKeyReleased(int user_key_index) { return ImGui::IsKeyReleased(static_cast<ImGuiKey>(user_key_index)); }
+	bool IsKeyChordPressed(int keyChord) { return ImGui::IsKeyChordPressed(static_cast<ImGuiKeyChord>(keyChord)); }
+	bool Shortcut(int keyChord) { return ImGui::Shortcut(static_cast<ImGuiKeyChord>(keyChord)); }
+	bool Shortcut(int keyChord, int flags) { return ImGui::Shortcut(static_cast<ImGuiKeyChord>(keyChord), static_cast<ImGuiInputFlags>(flags)); }
+	void SetNextItemShortcut(int keyChord) { ImGui::SetNextItemShortcut(static_cast<ImGuiKeyChord>(keyChord)); }
+	void SetNextItemShortcut(int keyChord, int flags) { ImGui::SetNextItemShortcut(static_cast<ImGuiKeyChord>(keyChord), static_cast<ImGuiInputFlags>(flags)); }
 	int GetKeyPressedAmount(int key_index, float repeat_delay, float rate) { return ImGui::GetKeyPressedAmount(static_cast<ImGuiKey>(key_index), repeat_delay, rate); }
 	void SetNextFrameWantCaptureKeyboard(bool want_capture_keyboard) { return ImGui::SetNextFrameWantCaptureKeyboard(want_capture_keyboard); }
 
@@ -1993,6 +2062,7 @@ namespace sol_ImGui
 	bool IsMouseClicked(int button) { return ImGui::IsMouseClicked(static_cast<ImGuiMouseButton>(button)); }
 	bool IsMouseClicked(int button, bool repeat) { return ImGui::IsMouseClicked(static_cast<ImGuiMouseButton>(button), repeat); }
 	bool IsMouseReleased(int button) { return ImGui::IsMouseReleased(static_cast<ImGuiMouseButton>(button)); }
+	bool IsMouseReleasedWithDelay(int button, float delay) { return ImGui::IsMouseReleasedWithDelay(static_cast<ImGuiMouseButton>(button), delay); }
 	bool IsMouseDoubleClicked(int button) { return ImGui::IsMouseDoubleClicked(static_cast<ImGuiMouseButton>(button)); }
 	int GetMouseClickedCount(int button) { return ImGui::GetMouseClickedCount(button); }
 	bool IsMouseHoveringRect(float min_x, float min_y, float max_x, float max_y) { return ImGui::IsMouseHoveringRect({ min_x, min_y }, { max_x, max_y }); }
@@ -2128,6 +2198,8 @@ namespace sol_ImGui
 		@tfield SetScrollFromPosY SetScrollFromPosY
 		@tfield PushStyleVar PushStyleVar
 		@tfield PopStyleVar PopStyleVar
+		@tfield PushStyleVarX PushStyleVarX
+		@tfield PushStyleVarY PushStyleVarY
 		@tfield PushFont PushFont
 		@tfield PopFont PopFont
 		@tfield PushStyleColor PushStyleColor
@@ -2146,6 +2218,8 @@ namespace sol_ImGui
 		@tfield PopTabStop PopTabStop
 		@tfield PushButtonRepeat PushButtonRepeat
 		@tfield PopButtonRepeat PopButtonRepeat
+		@tfield PushItemFlag PushItemFlag
+		@tfield PopItemFlag PopItemFlag
 		@tfield Separator Separator
 		@tfield SameLine SameLine
 		@tfield NewLine NewLine
@@ -2188,6 +2262,8 @@ namespace sol_ImGui
 		@tfield ProgressBar ProgressBar
 		@tfield Bullet Bullet
 		@tfield SeparatorText SeparatorText
+		@tfield TextLink TextLink
+		@tfield TextLinkOpenURL TextLinkOpenURL
 		@tfield ImageButton ImageButton
 		@tfield Image Image
 		@tfield BeginCombo BeginCombo
@@ -2274,6 +2350,7 @@ namespace sol_ImGui
 		@tfield TableHeader TableHeader
 		@tfield TableGetSortSpecs TableGetSortSpecs
 		@tfield TableGetColumnCount TableGetColumnCount
+		@tfield TableGetHoveredColumn TableGetHoveredColumn
 		@tfield TableGetColumnIndex TableGetColumnIndex
 		@tfield TableGetRowIndex TableGetRowIndex
 		@tfield TableGetColumnName TableGetColumnName
@@ -2330,11 +2407,15 @@ namespace sol_ImGui
 		@tfield IsKeyDown IsKeyDown
 		@tfield IsKeyPressed IsKeyPressed
 		@tfield IsKeyReleased IsKeyReleased
+		@tfield IsKeyChordPressed IsKeyChordPressed
+		@tfield Shortcut Shortcut
+		@tfield SetNextItemShortcut SetNextItemShortcut
 		@tfield GetKeyPressedAmount GetKeyPressedAmount
 		@tfield SetNextFrameWantCaptureKeyboard SetNextFrameWantCaptureKeyboard
 		@tfield IsMouseDown IsMouseDown
 		@tfield IsMouseClicked IsMouseClicked
 		@tfield IsMouseReleased IsMouseReleased
+		@tfield IsMouseReleasedWithDelay IsMouseReleasedWithDelay
 		@tfield IsMouseDoubleClicked IsMouseDoubleClicked
 		@tfield GetMouseClickedCount GetMouseClickedCount
 		@tfield IsMouseHoveringRect IsMouseHoveringRect
@@ -2644,7 +2725,7 @@ namespace sol_ImGui
 			sol::resolve<void(const std::string&)>(SetWindowFocus)
 		));
 		/***
-		Set font scale.
+		Set font scale. Legacy: prefer ImGui.PushFont(nil, size) or style.FontScaleMain.
 		@function ImGui.SetWindowFontScale
 		@tparam float scale
 		@usage
@@ -2822,16 +2903,42 @@ namespace sol_ImGui
 			sol::resolve<void()>(PopStyleVar),
 			sol::resolve<void(int)>(PopStyleVar)
 		));
+		/***
+		Modify only the X component of an ImVec2 style variable. Always use this if you modify the style after NewFrame().
+		@function ImGui.PushStyleVarX
+		@tparam int idx use ImGuiStyleVar enum
+		@tparam float valX
+		@usage
+			ImGui.PushStyleVarX(ImGuiStyleVar.ItemSpacing, 20);
+			ImGui.PopStyleVar();
+		*/
+		ImGui.set_function("PushStyleVarX", PushStyleVarX);
+		/***
+		Modify only the Y component of an ImVec2 style variable. Always use this if you modify the style after NewFrame().
+		@function ImGui.PushStyleVarY
+		@tparam int idx use ImGuiStyleVar enum
+		@tparam float valY
+		@usage
+			ImGui.PushStyleVarY(ImGuiStyleVar.ItemSpacing, 2);
+			ImGui.PopStyleVar();
+		*/
+		ImGui.set_function("PushStyleVarY", PushStyleVarY);
 
 #pragma region Parameters stacks (shared)
 		/***
-		Use nil as a shortcut to push default font.
+		Push a font, optionally at a specific size. Fonts can be drawn at any size without loading them again. ImGui.PushFont(nil) pushes the default font. ImGui.PushFont(nil, size) keeps the current font and only changes the size. A size of 0 keeps the current size.
 		@function ImGui.PushFont
 		@tparam ImFont font
+		@tparam float fontSize optional
 		@usage
 			ImGui.PushFont(font);
+			ImGui.PushFont(font, 24);
+			ImGui.PushFont(nil, 32);
 		*/
-		ImGui.set_function("PushFont", PushFont);
+		ImGui.set_function("PushFont", sol::overload(
+			sol::resolve<void(ImFont*)>(PushFont),
+			sol::resolve<void(ImFont*, float)>(PushFont)
+		));
 		/***
 		Pop font.
 		@function ImGui.PopFont
@@ -3005,6 +3112,23 @@ namespace sol_ImGui
 			ImGui.PopButtonRepeat();
 		*/
 		ImGui.set_function("PopButtonRepeat", PopButtonRepeat);
+		/***
+		Modify a shared item flag for all following items until PopItemFlag() is called.
+		@function ImGui.PushItemFlag
+		@tparam int option use ImGuiItemFlags enum
+		@tparam bool enabled
+		@usage
+			ImGui.PushItemFlag(ImGuiItemFlags.LiveEditOnInputScalar, true);
+			ImGui.PopItemFlag();
+		*/
+		ImGui.set_function("PushItemFlag", PushItemFlag);
+		/***
+		Pop item flag.
+		@function ImGui.PopItemFlag
+		@usage
+			ImGui.PopItemFlag();
+		*/
+		ImGui.set_function("PopItemFlag", PopItemFlag);
 #pragma endregion Parameters stacks (current window)
 
 #pragma region Cursor / Layout
@@ -3313,6 +3437,28 @@ namespace sol_ImGui
 			ImGui.SeparatorText("text");
 		*/
 		ImGui.set_function("SeparatorText", SeparatorText);
+		/***
+		Hyperlink text button.
+		@function ImGui.TextLink
+		@tparam string label
+		@treturn bool clicked
+		@usage
+			if ImGui.TextLink("Show details") then end
+		*/
+		ImGui.set_function("TextLink", TextLink);
+		/***
+		Hyperlink text button that opens the url (or the label if no url is given) in the default browser when clicked.
+		@function ImGui.TextLinkOpenURL
+		@tparam string label
+		@tparam string url optional
+		@treturn bool clicked
+		@usage
+			ImGui.TextLinkOpenURL("EOP on GitHub", "https://github.com/youneuoy/M2TWEOP-library");
+		*/
+		ImGui.set_function("TextLinkOpenURL", sol::overload(
+			sol::resolve<bool(const std::string&)>(TextLinkOpenURL),
+			sol::resolve<bool(const std::string&, const std::string&)>(TextLinkOpenURL)
+		));
 #pragma endregion Widgets: Text
 
 #pragma region Widgets: Main
@@ -4689,6 +4835,14 @@ namespace sol_ImGui
 		*/
 		ImGui.set_function("TableGetColumnCount",TableGetColumnCount);
 		/***
+		Return hovered column. Return -1 when table is not hovered. Return columns count if the unused space at the right of visible columns is hovered.
+		@function ImGui.TableGetHoveredColumn
+		@treturn int index
+		@usage
+			local column = ImGui.TableGetHoveredColumn();
+		*/
+		ImGui.set_function("TableGetHoveredColumn",TableGetHoveredColumn);
+		/***
 		Return current column index.
 		@function ImGui.TableGetColumnIndex
 		@treturn int index
@@ -5279,6 +5433,42 @@ namespace sol_ImGui
 		*/
 		ImGui.set_function("IsKeyReleased", IsKeyReleased);
 		/***
+		Was key chord (mods + key) pressed? Does not check focus, prefer Shortcut() in most cases.
+		@function ImGui.IsKeyChordPressed
+		@tparam int keyChord ImGuiKey value plus optional ImGuiMod values
+		@treturn bool result
+		@usage
+			if ImGui.IsKeyChordPressed(ImGuiMod.Ctrl + ImGuiKey.S) then end
+		*/
+		ImGui.set_function("IsKeyChordPressed", IsKeyChordPressed);
+		/***
+		Was key chord pressed, routed to the current window? Only the focused window (by default) receives it, so other windows can't steal it.
+		@function ImGui.Shortcut
+		@tparam int keyChord ImGuiKey value plus optional ImGuiMod values
+		@tparam int flags optional use ImGuiInputFlags enum
+		@treturn bool result
+		@usage
+			if ImGui.Shortcut(ImGuiMod.Ctrl + ImGuiKey.S) then end
+			if ImGui.Shortcut(ImGuiKey.F5, ImGuiInputFlags.RouteGlobal) then end
+		*/
+		ImGui.set_function("Shortcut", sol::overload(
+			sol::resolve<bool(int)>(Shortcut),
+			sol::resolve<bool(int, int)>(Shortcut)
+		));
+		/***
+		Assign a keyboard shortcut to the next item. Pressing it activates the item, e.g. clicks a button.
+		@function ImGui.SetNextItemShortcut
+		@tparam int keyChord ImGuiKey value plus optional ImGuiMod values
+		@tparam int flags optional use ImGuiInputFlags enum (ImGuiInputFlags.Tooltip shows the shortcut on hover)
+		@usage
+			ImGui.SetNextItemShortcut(ImGuiMod.Ctrl + ImGuiKey.Enter, ImGuiInputFlags.Tooltip);
+			ImGui.Button("Send");
+		*/
+		ImGui.set_function("SetNextItemShortcut", sol::overload(
+			sol::resolve<void(int)>(SetNextItemShortcut),
+			sol::resolve<void(int, int)>(SetNextItemShortcut)
+		));
+		/***
 		Uses provided repeat rate/delay. return a count, most often 0 or 1 but might be >1 if RepeatRate is small enough that DeltaTime > RepeatRate
 		@function ImGui.GetKeyPressedAmount
 		@tparam int key
@@ -5331,6 +5521,16 @@ namespace sol_ImGui
 			ImGui.IsMouseReleased();
 		*/
 		ImGui.set_function("IsMouseReleased", IsMouseReleased);
+		/***
+		Delayed mouse release, e.g. to tell a single click from the start of a double-click. Use a delay > io.MouseDoubleClickTime.
+		@function ImGui.IsMouseReleasedWithDelay
+		@tparam int button use MouseButton enum
+		@tparam float delay in seconds
+		@treturn bool result
+		@usage
+			if ImGui.IsMouseReleasedWithDelay(ImGuiMouseButton.Left, 0.35) then end
+		*/
+		ImGui.set_function("IsMouseReleasedWithDelay", IsMouseReleasedWithDelay);
 		/***
 		Did mouse button double-clicked? (note that a double-click will also report IsMouseClicked() == true).
 		@function ImGui.IsMouseDoubleClicked
@@ -5543,11 +5743,15 @@ namespace sol_ImGui
 		/***
 		Basic ImGuiStyle table
 
+		@tfield float FontSizeBase Current base font size before global scale factors are applied. Use ImGui.PushFont(nil, size) to modify. Use ImGui.GetFontSize() to obtain the scaled value.
+		@tfield float FontScaleMain Main global scale factor for all fonts.
+		@tfield float FontScaleDpi Additional global scale factor from monitor DPI.
 		@tfield float Alpha Global alpha applies to everything in Dear ImGui.
 		@tfield float DisabledAlpha Additional alpha multiplier applied by BeginDisabled(). Multiply over current value of Alpha.
 		@tfield ImVec2 WindowPadding Padding within a window.
 		@tfield float WindowRounding Radius of window corners rounding. Set to 0.0f to have rectangular windows. Large values tend to lead to variety of artifacts and are not recommended.
 		@tfield float WindowBorderSize Thickness of border around windows. Generally set to 0.0f or 1.0f. (Other values are not well tested and more CPU/GPU costly).
+		@tfield float WindowBorderHoverPadding Hit-testing extent outside/inside resizing border. Also extend determination of hovered window.
 		@tfield ImVec2 WindowMinSize Minimum window size. This is a global setting. If you want to constrain individual windows, use SetNextWindowSizeConstraints().
 		@tfield ImVec2 WindowTitleAlign Alignment for title bar text. Defaults to (0.0f,0.5f) for left-aligned,vertically centered.
 		@tfield int WindowMenuButtonPosition Aside of the collapsing/docking button in the title bar (None/Left/Right). Defaults to ImGuiDir.Left.
@@ -5566,17 +5770,37 @@ namespace sol_ImGui
 		@tfield float ColumnsMinSpacing Minimum horizontal spacing between two columns. Preferably > (FramePadding.x + 1).
 		@tfield float ScrollbarSize Width of the vertical scrollbar, Height of the horizontal scrollbar.
 		@tfield float ScrollbarRounding Radius of grab corners for scrollbar.
+		@tfield float ScrollbarPadding Padding of scrollbar grab within its frame (same for both axes).
 		@tfield float GrabMinSize Minimum width/height of a grab box for slider/scrollbar.
 		@tfield float GrabRounding Radius of grabs corners rounding. Set to 0.0f to have rectangular slider grabs.
 		@tfield float LogSliderDeadzone The size in pixels of the dead-zone around zero on logarithmic sliders that cross zero.
+		@tfield float ImageRounding Rounding of Image() calls.
+		@tfield float ImageBorderSize Thickness of border around Image() calls.
 		@tfield float TabRounding Radius of upper corners of a tab. Set to 0.0f to have rectangular tabs.
 		@tfield float TabBorderSize Thickness of border around tabs.
-		@tfield float TabMinWidthForCloseButton Minimum width for close button to appear on an unselected tab when hovered. Set to 0.0f to always show when hovering, set to FLT_MAX to never show close button unless selected.
+		@tfield float TabMinWidthBase Minimum tab width, to make tabs larger than their contents.
+		@tfield float TabMinWidthShrink Minimum tab width after shrinking, when using ImGuiTabBarFlags.FittingPolicyMixed.
+		@tfield float TabCloseButtonMinWidthSelected -1: always visible. 0.0f: visible when hovered. >0.0f: visible when hovered if minimum width.
+		@tfield float TabCloseButtonMinWidthUnselected -1: always visible. 0.0f: visible when hovered. >0.0f: visible when hovered if minimum width. FLT_MAX: never show close button when unselected.
+		@tfield float TabMinWidthForCloseButton Legacy name for TabCloseButtonMinWidthUnselected.
 		@tfield float TabBarBorderSize Thickness of tab-bar separator, which takes on the tab active color to denote focus.
+		@tfield float TabBarOverlineSize Thickness of tab-bar overline, which highlights the selected tab-bar.
 		@tfield float TableAngledHeadersAngle Angle of angled headers (supported values range from -50.0f degrees to +50.0f degrees).
+		@tfield ImVec2 TableAngledHeadersTextAlign Alignment of angled headers within the cell.
+		@tfield int TreeLinesFlags Default way to draw lines connecting TreeNode hierarchy: ImGuiTreeNodeFlags.DrawLinesNone, DrawLinesFull or DrawLinesToNodes.
+		@tfield float TreeLinesSize Thickness of outlines when using ImGuiTreeNodeFlags.DrawLines.
+		@tfield float TreeLinesRounding Radius of lines connecting child nodes to the vertical line.
+		@tfield float MenuItemRounding Radius of MenuItem, BeginMenu rounding.
+		@tfield float SelectableRounding Radius of Selectable rounding.
+		@tfield float DragDropTargetRounding Radius of the drag and drop target frame. When <0.0f: use FrameRounding.
+		@tfield float DragDropTargetBorderSize Thickness of the drag and drop target border.
+		@tfield float DragDropTargetPadding Size to expand the drag and drop target from actual target item size.
+		@tfield float ColorMarkerSize Size of R/G/B/A color markers for ColorEdit4() and for Drags/Sliders when using ImGuiSliderFlags.ColorMarkers.
+		@tfield float InputTextCursorSize Thickness of cursor/caret in InputText().
 		@tfield int ColorButtonPosition Side of the color button in the ColorEdit4 widget (left/right). Defaults to ImGuiDir.Right.
 		@tfield ImVec2 ButtonTextAlign Alignment of button text when button is larger than text. Defaults to (0.5f, 0.5f) (centered).
 		@tfield ImVec2 SelectableTextAlign Alignment of selectable text. Defaults to (0.0f, 0.0f) (top-left aligned). It's generally important to keep this left-aligned if you want to lay multiple items on a same line.
+		@tfield float SeparatorSize Thickness of border in Separator(). Must be >= 1.0f.
 		@tfield float SeparatorTextBorderSize Thickkness of border in SeparatorText()
 		@tfield ImVec2 SeparatorTextAlign Alignment of text within the separator. Defaults to (0.0f, 0.5f) (left aligned, center).
 		@tfield ImVec2 SeparatorTextPadding Horizontal offset of text from each edge of the separator + spacing on other axis. Generally small values. .y is recommended to be == FramePadding.y.
@@ -5588,7 +5812,7 @@ namespace sol_ImGui
 		@tfield bool AntiAliasedFill Enable anti-aliased edges around filled shapes (rounded rectangles, circles, etc.). Disable if you are really tight on CPU/GPU. Latched at the beginning of the frame (copied to ImDrawList).
 		@tfield float CurveTessellationTol Tessellation tolerance when using PathBezierCurveTo() without a specific number of segments. Decrease for highly tessellated curves (higher quality, more polygons), increase to reduce quality.
 		@tfield float CircleTessellationMaxError Maximum error (in pixels) allowed when using AddCircle()/AddCircleFilled() or drawing rounded corner rectangles with no explicit segment count specified. Decrease for higher quality but more geometry.
-		@tfield ImVec4[52] Colors Maximum: 52
+		@tfield ImVec4[62] Colors Maximum: 62
 		@tfield float HoverStationaryDelay Delay for IsItemHovered(ImGuiHoveredFlags_Stationary). Time required to consider mouse stationary.
 		@tfield float HoverDelayShort Delay for IsItemHovered(ImGuiHoveredFlags_DelayShort). Usually used along with HoverStationaryDelay.
 		@tfield float HoverDelayNormal Delay for IsItemHovered(ImGuiHoveredFlags_DelayNormal). 
@@ -5599,11 +5823,15 @@ namespace sol_ImGui
 		@table ImGuiStyle
 		*/
 		sol::usertype<ImGuiStyle> imguiStyle = lua.new_usertype<ImGuiStyle>("ImGuiStyle");
+		imguiStyle.set("FontSizeBase", &ImGuiStyle::FontSizeBase);
+		imguiStyle.set("FontScaleMain", &ImGuiStyle::FontScaleMain);
+		imguiStyle.set("FontScaleDpi", &ImGuiStyle::FontScaleDpi);
 		imguiStyle.set("Alpha", &ImGuiStyle::Alpha);
 		imguiStyle.set("DisabledAlpha", &ImGuiStyle::DisabledAlpha);
 		imguiStyle.set("WindowPadding", &ImGuiStyle::WindowPadding);
 		imguiStyle.set("WindowRounding", &ImGuiStyle::WindowRounding);
 		imguiStyle.set("WindowBorderSize", &ImGuiStyle::WindowBorderSize);
+		imguiStyle.set("WindowBorderHoverPadding", &ImGuiStyle::WindowBorderHoverPadding);
 		imguiStyle.set("WindowMinSize", &ImGuiStyle::WindowMinSize);
 		imguiStyle.set("WindowTitleAlign", &ImGuiStyle::WindowTitleAlign);
 		imguiStyle.set("WindowMenuButtonPosition", &ImGuiStyle::WindowMenuButtonPosition);
@@ -5622,17 +5850,37 @@ namespace sol_ImGui
 		imguiStyle.set("ColumnsMinSpacing", &ImGuiStyle::ColumnsMinSpacing);
 		imguiStyle.set("ScrollbarSize", &ImGuiStyle::ScrollbarSize);
 		imguiStyle.set("ScrollbarRounding", &ImGuiStyle::ScrollbarRounding);
+		imguiStyle.set("ScrollbarPadding", &ImGuiStyle::ScrollbarPadding);
 		imguiStyle.set("GrabMinSize", &ImGuiStyle::GrabMinSize);
 		imguiStyle.set("GrabRounding", &ImGuiStyle::GrabRounding);
 		imguiStyle.set("LogSliderDeadzone", &ImGuiStyle::LogSliderDeadzone);
+		imguiStyle.set("ImageRounding", &ImGuiStyle::ImageRounding);
+		imguiStyle.set("ImageBorderSize", &ImGuiStyle::ImageBorderSize);
 		imguiStyle.set("TabRounding", &ImGuiStyle::TabRounding);
 		imguiStyle.set("TabBorderSize", &ImGuiStyle::TabBorderSize);
-		imguiStyle.set("TabMinWidthForCloseButton", &ImGuiStyle::TabMinWidthForCloseButton);
+		imguiStyle.set("TabMinWidthBase", &ImGuiStyle::TabMinWidthBase);
+		imguiStyle.set("TabMinWidthShrink", &ImGuiStyle::TabMinWidthShrink);
+		imguiStyle.set("TabCloseButtonMinWidthSelected", &ImGuiStyle::TabCloseButtonMinWidthSelected);
+		imguiStyle.set("TabCloseButtonMinWidthUnselected", &ImGuiStyle::TabCloseButtonMinWidthUnselected);
+		imguiStyle.set("TabMinWidthForCloseButton", &ImGuiStyle::TabCloseButtonMinWidthUnselected);
 		imguiStyle.set("TabBarBorderSize", &ImGuiStyle::TabBarBorderSize);
+		imguiStyle.set("TabBarOverlineSize", &ImGuiStyle::TabBarOverlineSize);
 		imguiStyle.set("TableAngledHeadersAngle", &ImGuiStyle::TableAngledHeadersAngle);
+		imguiStyle.set("TableAngledHeadersTextAlign", &ImGuiStyle::TableAngledHeadersTextAlign);
+		imguiStyle.set("TreeLinesFlags", &ImGuiStyle::TreeLinesFlags);
+		imguiStyle.set("TreeLinesSize", &ImGuiStyle::TreeLinesSize);
+		imguiStyle.set("TreeLinesRounding", &ImGuiStyle::TreeLinesRounding);
+		imguiStyle.set("MenuItemRounding", &ImGuiStyle::MenuItemRounding);
+		imguiStyle.set("SelectableRounding", &ImGuiStyle::SelectableRounding);
+		imguiStyle.set("DragDropTargetRounding", &ImGuiStyle::DragDropTargetRounding);
+		imguiStyle.set("DragDropTargetBorderSize", &ImGuiStyle::DragDropTargetBorderSize);
+		imguiStyle.set("DragDropTargetPadding", &ImGuiStyle::DragDropTargetPadding);
+		imguiStyle.set("ColorMarkerSize", &ImGuiStyle::ColorMarkerSize);
+		imguiStyle.set("InputTextCursorSize", &ImGuiStyle::InputTextCursorSize);
 		imguiStyle.set("ColorButtonPosition", &ImGuiStyle::ColorButtonPosition);
 		imguiStyle.set("ButtonTextAlign", &ImGuiStyle::ButtonTextAlign);
 		imguiStyle.set("SelectableTextAlign", &ImGuiStyle::SelectableTextAlign);
+		imguiStyle.set("SeparatorSize", &ImGuiStyle::SeparatorSize);
 		imguiStyle.set("SeparatorTextBorderSize", &ImGuiStyle::SeparatorTextBorderSize);
 		imguiStyle.set("SeparatorTextAlign", &ImGuiStyle::SeparatorTextAlign);
 		imguiStyle.set("SeparatorTextPadding", &ImGuiStyle::SeparatorTextPadding);
@@ -5797,6 +6045,7 @@ namespace sol_ImGui
 		@tfield PathLineTo PathLineTo
 		@tfield PathLineToMergeDuplicate PathLineToMergeDuplicate
 		@tfield PathFillConvex PathFillConvex
+		@tfield PathFillConcave PathFillConcave
 		@tfield PathStroke PathStroke
 		@tfield PathArcTo PathArcTo
 		@tfield PathArcToFast PathArcToFast
@@ -6209,18 +6458,29 @@ namespace sol_ImGui
 		DrawList.set_function("PathFillConvex", sol::overload(
 			sol::resolve<void(ImDrawList*, uint32_t)>(PathFillConvex)
 		));
+
+		/***
+		Path Fill Concave. Slower than PathFillConvex, but works with any non self-intersecting shape.
+		@function DrawList:PathFillConcave
+		@tparam int color
+		@usage
+			DrawList:PathFillConcave();
+		*/
+		DrawList.set_function("PathFillConcave", PathFillConcave);
 		
 		/***
 		Path Stroke.
 		@function DrawList:PathStroke
 		@tparam int color
-		@tparam int flags optional
+		@tparam int flags optional use ImDrawFlags enum
+		@tparam float thickness optional
 		@usage
 			DrawList:PathStroke();
 		*/
 		DrawList.set_function("PathStroke", sol::overload(
 			sol::resolve<void(ImDrawList*, uint32_t)>(PathStroke),
-			sol::resolve<void(ImDrawList*, uint32_t, int)>(PathStroke)
+			sol::resolve<void(ImDrawList*, uint32_t, int)>(PathStroke),
+			sol::resolve<void(ImDrawList*, uint32_t, int, float)>(PathStroke)
 		));
 		
 		/***
@@ -6337,7 +6597,7 @@ namespace sol_ImGui
 		@tfield float IniSavingRate Minimum time between saving positions/sizes to .ini file, in seconds.
 		@tfield string IniFilename Path to .ini file (important: default "imgui.ini" is relative to current working dir!). Set NULL to disable automatic .ini loading/saving or if you want to manually call LoadIniSettingsXXX() / SaveIniSettingsXXX() functions.
 		@tfield string LogFilename Path to .log file (default parameter to ImGui::LogToFile when no file is specified).
-		@tfield float FontGlobalScale Global scale all fonts
+		@tfield float FontGlobalScale Legacy: global scale all fonts. Use ImGuiStyle.FontScaleMain instead.
 		@tfield bool FontAllowUserScaling Allow user scaling text of individual window with CTRL+Wheel.
 		@tfield ImFont FontDefault Font to use on NewFrame(). Use NULL to uses Fonts->Fonts[0].
 		@tfield ImVec2 DisplayFramebufferScale For retina display or other situations where window coordinates are different from framebuffer coordinates. This generally ends up in ImDrawData::FramebufferScale.
@@ -6354,6 +6614,8 @@ namespace sol_ImGui
 		@tfield bool KeyAlt Keyboard modifier down: Alt
 		@tfield bool KeySuper Keyboard modifier down: Cmd/Super/Windows
 		@tfield bool WantCaptureMouseUnlessPopupClose Alternative to WantCaptureMouse: (WantCaptureMouse == true && WantCaptureMouseUnlessPopupClose == false) when a click over void is expected to close a popup.
+		@tfield bool ConfigDebugHighlightIdConflicts Highlight and show a warning tooltip when multiple items have the same ID. Off by default in EOP, enable it while developing scripts.
+		@tfield bool ConfigErrorRecoveryEnableTooltip Show a tooltip when ImGui recovers from a script error such as a missing End(). Off by default in EOP, enable it while developing scripts.
 
 		@table ImGuiIO
 		*/
@@ -6383,6 +6645,8 @@ namespace sol_ImGui
 		IO.set("KeyAlt", &ImGuiIO::KeyAlt);
 		IO.set("KeySuper", &ImGuiIO::KeySuper);
 		IO.set("WantCaptureMouseUnlessPopupClose", &ImGuiIO::WantCaptureMouseUnlessPopupClose);
+		IO.set("ConfigDebugHighlightIdConflicts", &ImGuiIO::ConfigDebugHighlightIdConflicts);
+		IO.set("ConfigErrorRecoveryEnableTooltip", &ImGuiIO::ConfigErrorRecoveryEnableTooltip);
 
 		///ImGuiTableSortSpecs
 		//@section ImGuiTableSortSpecs

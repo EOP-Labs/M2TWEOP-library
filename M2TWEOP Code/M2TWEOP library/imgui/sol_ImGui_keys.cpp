@@ -111,6 +111,7 @@ namespace sol_ImGui
 		@tfield int Backslash \ (this text inhibit multiline comment caused by backslash)
 		@tfield int RightBracket ]
 		@tfield int GraveAccent `
+		@tfield int Oem102 Non-US backslash.
 		@tfield int CapsLock
 		@tfield int ScrollLock
 		@tfield int NumLock
@@ -272,6 +273,7 @@ namespace sol_ImGui
 			"Backslash", ImGuiKey_Backslash,
 			"RightBracket", ImGuiKey_RightBracket,
 			"GraveAccent", ImGuiKey_GraveAccent,
+			"Oem102", ImGuiKey_Oem102,
 			"CapsLock", ImGuiKey_CapsLock,
 			"ScrollLock", ImGuiKey_ScrollLock,
 			"NumLock", ImGuiKey_NumLock,
@@ -331,7 +333,7 @@ namespace sol_ImGui
 			"ReservedForModShift", ImGuiKey_ReservedForModShift,
 			"ReservedForModAlt", ImGuiKey_ReservedForModAlt,
 			"ReservedForModSuper", ImGuiKey_ReservedForModSuper,
-			"COUNT", ImGuiKey_COUNT
+			"COUNT", ImGuiKey_NamedKey_END
 		);
 #pragma endregion Key
     }

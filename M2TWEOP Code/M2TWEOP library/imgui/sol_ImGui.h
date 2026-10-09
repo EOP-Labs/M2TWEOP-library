@@ -95,6 +95,7 @@ namespace sol_ImGui
 
 	// Parameters stacks (shared)
 	void PushFont(ImFont* pFont);
+	void PushFont(ImFont* pFont, float fontSize);
 	void PopFont();
 #ifdef SOL_IMGUI_USE_COLOR_U32
 	void PushStyleColor(int idx, int col);
@@ -104,12 +105,16 @@ namespace sol_ImGui
 	void PopStyleColor(int count); 
 	void PushStyleVar(int idx, float val); ;
 	void PushStyleVar(int idx, float valX, float valY);
+	void PushStyleVarX(int idx, float valX);
+	void PushStyleVarY(int idx, float valY);
 	void PopStyleVar();
 	void PopStyleVar(int count);
 	void PushTabStop(bool tabStop); 
 	void PopTabStop();
 	void PushButtonRepeat(bool repeat);
 	void PopButtonRepeat(); 
+	void PushItemFlag(int option, bool enabled);
+	void PopItemFlag();
 	void PushItemWidth(float itemWidth);
 	// Parameters stacks (current window)
 	void PopItemWidth();
@@ -184,6 +189,9 @@ namespace sol_ImGui
 	void LabelText(const std::string& label, const std::string& text);
 	void BulletText(const std::string& text); 
 	void SeparatorText(const std::string& text);
+	bool TextLink(const std::string& label);
+	bool TextLinkOpenURL(const std::string& label);
+	bool TextLinkOpenURL(const std::string& label, const std::string& url);
 
 	// Widgets: Main
 	bool Button(const std::string& label);
@@ -476,6 +484,7 @@ namespace sol_ImGui
 	const ImGuiTableColumnSortSpecs* GetSortSpecs(ImGuiTableSortSpecs* tablesort, int index);
 	ImGuiTableSortSpecs* TableGetSortSpecs();
 	int TableGetColumnCount();
+	int TableGetHoveredColumn();
 	int TableGetColumnIndex();;
 	int TableGetRowIndex();
 	const char* TableGetColumnName();
@@ -598,6 +607,11 @@ namespace sol_ImGui
 	bool IsKeyPressed(int user_key_index);
 	bool IsKeyPressed(int user_key_index, bool repeat);
 	bool IsKeyReleased(int user_key_index);
+	bool IsKeyChordPressed(int keyChord);
+	bool Shortcut(int keyChord);
+	bool Shortcut(int keyChord, int flags);
+	void SetNextItemShortcut(int keyChord);
+	void SetNextItemShortcut(int keyChord, int flags);
 	int GetKeyPressedAmount(int key_index, float repeat_delay, float rate);
 	void SetNextFrameWantCaptureKeyboard(bool want_capture_keyboard);
 
@@ -606,6 +620,7 @@ namespace sol_ImGui
 	bool IsMouseClicked(int button);
 	bool IsMouseClicked(int button, bool repeat);
 	bool IsMouseReleased(int button);
+	bool IsMouseReleasedWithDelay(int button, float delay);
 	bool IsMouseDoubleClicked(int button);
 	int GetMouseClickedCount(int button);
 	bool IsMouseHoveringRect(float min_x, float min_y, float max_x, float max_y);
@@ -688,6 +703,7 @@ namespace sol_ImGui
 	void PathLineTo(ImDrawList* drawlist, float posX, float posY);
 	void PathLineToMergeDuplicate(ImDrawList* drawlist, float posX, float posY);
 	void PathFillConvex(ImDrawList* drawlist, uint32_t color);
+	void PathFillConcave(ImDrawList* drawlist, uint32_t color);
 	void PathStroke(ImDrawList* drawlist, uint32_t color);
 	void PathStroke(ImDrawList* drawlist, uint32_t color, int flags);
 	void PathArcTo(ImDrawList* drawlist, float centerX, float centerY, float radius, float aMin, float aMax);

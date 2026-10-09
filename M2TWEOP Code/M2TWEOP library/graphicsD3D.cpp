@@ -222,6 +222,8 @@ void graphicsD3D::onDrawAllGameStuff()
 	ImGui_ImplDX9_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
+	// imgui 1.92.9 stopped writing typed Drag/Slider/Input values back on each keystroke; keep the old behaviour for scripts
+	ImGui::PushItemFlag(ImGuiItemFlags_LiveEditOnInputScalar, true);
 
 	auto& developerMode = globals::dataS.Modules.developerMode;
 	developerMode.update();
@@ -341,6 +343,7 @@ void graphicsD3D::onDrawAllGameStuff()
 
 
 
+	ImGui::PopItemFlag();
 	ImGui::EndFrame();
 	ImGui::Render();
 	ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
@@ -393,7 +396,7 @@ NOINLINE void graphicsD3D::initImgGui(IDirect3DDevice9* pDevice)
 	ImFont* newFont = io.Fonts->AddFontFromFileTTF(f.c_str(), 16.f, &font_config, io.Fonts->GetGlyphRangesCyrillic());
 	if (newFont == nullptr)
 	{
-		io.Fonts->AddFontDefault(&font_config);
+		io.Fonts->AddFontDefaultBitmap(&font_config);
 	}
 
 	onLoadingFonts(pDevice);
@@ -411,6 +414,9 @@ bool graphicsD3D::init()
 {
 	IMGUI_CHECKVERSION();
 	ImGuiContext* imCtx = ImGui::CreateContext();
+	// ImGui shows these debug tooltips in release builds too; keep them off for players, scripts can enable them via ImGui.GetIO()
+	ImGui::GetIO().ConfigDebugHighlightIdConflicts = false;
+	ImGui::GetIO().ConfigErrorRecoveryEnableTooltip = false;
 
 	ImGuiMemAllocFunc allocF;
 	ImGuiMemFreeFunc freeF;

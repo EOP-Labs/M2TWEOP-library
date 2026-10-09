@@ -99,6 +99,7 @@ namespace sol_ImGui
 		@tfield int ScrollbarGrabHovered
 		@tfield int ScrollbarGrabActive
 		@tfield int CheckMark Checkbox tick and RadioButton circle
+		@tfield int CheckboxSelectedBg Checkbox background when Selected, otherwise use FrameBg
 		@tfield int SliderGrab
 		@tfield int SliderGrabActive
 		@tfield int Button
@@ -113,11 +114,17 @@ namespace sol_ImGui
 		@tfield int ResizeGrip Resize grip in lower-right and lower-left corners of windows.
 		@tfield int ResizeGripHovered
 		@tfield int ResizeGripActive
-		@tfield int Tab TabItem in a TabBar
-		@tfield int TabHovered
-		@tfield int TabActive
-		@tfield int TabUnfocused
-		@tfield int TabUnfocusedActive
+		@tfield int InputTextCursor InputText cursor/caret
+		@tfield int Tab Tab background, when tab-bar is focused & tab is unselected
+		@tfield int TabHovered Tab background, when hovered
+		@tfield int TabSelected Tab background, when tab-bar is focused & tab is selected
+		@tfield int TabSelectedOverline Tab horizontal overline, when tab-bar is focused & tab is selected
+		@tfield int TabDimmed Tab background, when tab-bar is unfocused & tab is unselected
+		@tfield int TabDimmedSelected Tab background, when tab-bar is unfocused & tab is selected
+		@tfield int TabDimmedSelectedOverline Tab horizontal overline, when tab-bar is unfocused & tab is selected
+		@tfield int TabActive Legacy name for TabSelected.
+		@tfield int TabUnfocused Legacy name for TabDimmed.
+		@tfield int TabUnfocusedActive Legacy name for TabDimmedSelected.
 		@tfield int PlotLines
 		@tfield int PlotLinesHovered
 		@tfield int PlotHistogram
@@ -127,9 +134,14 @@ namespace sol_ImGui
 		@tfield int TableBorderLight Table inner borders (prefer using Alpha=1.0 here)
 		@tfield int TableRowBg Table row background (even rows)
 		@tfield int TableRowBgAlt Table row background (odd rows)
+		@tfield int TextLink Hyperlink color
 		@tfield int TextSelectedBg
-		@tfield int DragDropTarget
-		@tfield int NavHighlight
+		@tfield int TreeLines Tree node hierarchy outlines when using ImGuiTreeNodeFlags.DrawLinesFull/DrawLinesToNodes
+		@tfield int DragDropTarget Rectangle border highlighting a drop target
+		@tfield int DragDropTargetBg Rectangle background highlighting a drop target
+		@tfield int UnsavedMarker Unsaved Document marker (in window title and tabs)
+		@tfield int NavCursor Color of keyboard/gamepad navigation cursor/rectangle, when visible
+		@tfield int NavHighlight Legacy name for NavCursor.
 		@tfield int NavWindowingHighlight
 		@tfield int NavWindowingDimBg
 		@tfield int ModalWindowDimBg
@@ -159,6 +171,7 @@ namespace sol_ImGui
 			"ScrollbarGrabHovered", ImGuiCol_ScrollbarGrabHovered,
 			"ScrollbarGrabActive", ImGuiCol_ScrollbarGrabActive,
 			"CheckMark", ImGuiCol_CheckMark,
+			"CheckboxSelectedBg", ImGuiCol_CheckboxSelectedBg,
 			"SliderGrab", ImGuiCol_SliderGrab,
 			"SliderGrabActive", ImGuiCol_SliderGrabActive,
 			"Button", ImGuiCol_Button,
@@ -173,11 +186,17 @@ namespace sol_ImGui
 			"ResizeGrip", ImGuiCol_ResizeGrip,
 			"ResizeGripHovered", ImGuiCol_ResizeGripHovered,
 			"ResizeGripActive", ImGuiCol_ResizeGripActive,
+			"InputTextCursor", ImGuiCol_InputTextCursor,
 			"Tab", ImGuiCol_Tab,
 			"TabHovered", ImGuiCol_TabHovered,
-			"TabActive", ImGuiCol_TabActive,
-			"TabUnfocused", ImGuiCol_TabUnfocused,
-			"TabUnfocusedActive", ImGuiCol_TabUnfocusedActive,
+			"TabSelected", ImGuiCol_TabSelected,
+			"TabSelectedOverline", ImGuiCol_TabSelectedOverline,
+			"TabDimmed", ImGuiCol_TabDimmed,
+			"TabDimmedSelected", ImGuiCol_TabDimmedSelected,
+			"TabDimmedSelectedOverline", ImGuiCol_TabDimmedSelectedOverline,
+			"TabActive", ImGuiCol_TabSelected,
+			"TabUnfocused", ImGuiCol_TabDimmed,
+			"TabUnfocusedActive", ImGuiCol_TabDimmedSelected,
 			"PlotLines", ImGuiCol_PlotLines,
 			"PlotLinesHovered", ImGuiCol_PlotLinesHovered,
 			"PlotHistogram", ImGuiCol_PlotHistogram,
@@ -187,9 +206,14 @@ namespace sol_ImGui
 			"TableBorderLight",ImGuiCol_TableBorderLight,
 			"TableRowBg",ImGuiCol_TableRowBg,
 			"TableRowBgAlt",ImGuiCol_TableRowBgAlt,
+			"TextLink", ImGuiCol_TextLink,
 			"TextSelectedBg", ImGuiCol_TextSelectedBg,
+			"TreeLines", ImGuiCol_TreeLines,
 			"DragDropTarget", ImGuiCol_DragDropTarget,
-			"NavHighlight", ImGuiCol_NavHighlight,
+			"DragDropTargetBg", ImGuiCol_DragDropTargetBg,
+			"UnsavedMarker", ImGuiCol_UnsavedMarker,
+			"NavCursor", ImGuiCol_NavCursor,
+			"NavHighlight", ImGuiCol_NavCursor,
 			"NavWindowingHighlight", ImGuiCol_NavWindowingHighlight,
 			"NavWindowingDimBg", ImGuiCol_NavWindowingDimBg,
 			"ModalWindowDimBg", ImGuiCol_ModalWindowDimBg,
@@ -222,12 +246,27 @@ namespace sol_ImGui
 		@tfield int CellPadding ImVec2
 		@tfield int ScrollbarSize float
 		@tfield int ScrollbarRounding float
+		@tfield int ScrollbarPadding float
 		@tfield int GrabMinSize float
 		@tfield int GrabRounding float
+		@tfield int ImageRounding float
+		@tfield int ImageBorderSize float
 		@tfield int TabRounding float
+		@tfield int TabBorderSize float
+		@tfield int TabMinWidthBase float
+		@tfield int TabMinWidthShrink float
 		@tfield int TabBarBorderSize float
+		@tfield int TabBarOverlineSize float
+		@tfield int TableAngledHeadersAngle float
+		@tfield int TableAngledHeadersTextAlign ImVec2
+		@tfield int TreeLinesSize float
+		@tfield int TreeLinesRounding float
+		@tfield int MenuItemRounding float
+		@tfield int SelectableRounding float
+		@tfield int DragDropTargetRounding float
 		@tfield int ButtonTextAlign ImVec2
 		@tfield int SelectableTextAlign ImVec2
+		@tfield int SeparatorSize float
 		@tfield int SeparatorTextBorderSize float
 		@tfield int SeparatorTextAlign ImVec2
 		@tfield int SeparatorTextPadding ImVec2
@@ -257,12 +296,27 @@ namespace sol_ImGui
 			"CellPadding", ImGuiStyleVar_CellPadding,
 			"ScrollbarSize", ImGuiStyleVar_ScrollbarSize,
 			"ScrollbarRounding", ImGuiStyleVar_ScrollbarRounding,
+			"ScrollbarPadding", ImGuiStyleVar_ScrollbarPadding,
 			"GrabMinSize", ImGuiStyleVar_GrabMinSize,
 			"GrabRounding", ImGuiStyleVar_GrabRounding,
+			"ImageRounding", ImGuiStyleVar_ImageRounding,
+			"ImageBorderSize", ImGuiStyleVar_ImageBorderSize,
 			"TabRounding", ImGuiStyleVar_TabRounding,
+			"TabBorderSize", ImGuiStyleVar_TabBorderSize,
+			"TabMinWidthBase", ImGuiStyleVar_TabMinWidthBase,
+			"TabMinWidthShrink", ImGuiStyleVar_TabMinWidthShrink,
 			"TabBarBorderSize", ImGuiStyleVar_TabBarBorderSize,
+			"TabBarOverlineSize", ImGuiStyleVar_TabBarOverlineSize,
+			"TableAngledHeadersAngle", ImGuiStyleVar_TableAngledHeadersAngle,
+			"TableAngledHeadersTextAlign", ImGuiStyleVar_TableAngledHeadersTextAlign,
+			"TreeLinesSize", ImGuiStyleVar_TreeLinesSize,
+			"TreeLinesRounding", ImGuiStyleVar_TreeLinesRounding,
+			"MenuItemRounding", ImGuiStyleVar_MenuItemRounding,
+			"SelectableRounding", ImGuiStyleVar_SelectableRounding,
+			"DragDropTargetRounding", ImGuiStyleVar_DragDropTargetRounding,
 			"ButtonTextAlign", ImGuiStyleVar_ButtonTextAlign,
 			"SelectableTextAlign", ImGuiStyleVar_SelectableTextAlign,
+			"SeparatorSize", ImGuiStyleVar_SeparatorSize,
 			"SeparatorTextBorderSize", ImGuiStyleVar_SeparatorTextBorderSize,
 			"SeparatorTextAlign", ImGuiStyleVar_SeparatorTextAlign,
 			"SeparatorTextPadding", ImGuiStyleVar_SeparatorTextPadding,
@@ -307,9 +361,12 @@ namespace sol_ImGui
 		@tfield int NoSidePreview ColorPicker: disable bigger color preview on right side of the picker, use small color square preview instead.
 		@tfield int NoDragDrop ColorEdit: disable drag and drop target. ColorButton: disable drag and drop source.
 		@tfield int NoBorder ColorButton: disable border (which is enforced by default)
+		@tfield int NoColorMarkers ColorEdit: disable rendering R/G/B/A color marker. May also be disabled globally by setting style.ColorMarkerSize = 0.
+		@tfield int AlphaOpaque ColorEdit, ColorPicker, ColorButton: disable alpha in the preview. Contrary to NoAlpha it may still be edited when calling ColorEdit4()/ColorPicker4().
+		@tfield int AlphaNoBg ColorEdit, ColorPicker, ColorButton: disable rendering a checkerboard background behind transparent color.
 		@tfield int AlphaBar ColorEdit, ColorPicker: show vertical alpha bar/gradient in picker.
 		@tfield int AlphaPreview ColorEdit, ColorPicker, ColorButton: display preview as a transparent color over a checkerboard, instead of opaque.
-		@tfield int AlphaPreviewHalf ColorEdit, ColorPicker, ColorButton: display half opaque / half checkerboard, instead of opaque.
+		@tfield int AlphaPreviewHalf ColorEdit, ColorPicker, ColorButton: display half opaque / half transparent preview.
 		@tfield int HDR (WIP) ColorEdit: Currently only disable 0.0f..1.0f limits in RGBA edition (note: you probably want to use ImGuiColorEditFlags_Float flag as well).
 		@tfield int DisplayRGB ColorEdit: override _display_ type among RGB/HSV/Hex. ColorPicker: select any combination using one or more of RGB/HSV/Hex.
 		@tfield int DisplayHSV ColorEdit: override _display_ type among RGB/HSV/Hex. ColorPicker: select any combination using one or more of RGB/HSV/Hex.
@@ -318,6 +375,7 @@ namespace sol_ImGui
 		@tfield int Float ColorEdit, ColorPicker, ColorButton: _display_ values formatted as 0.0f..1.0f floats instead of 0..255 integers. No round-trip of value via integers.
 		@tfield int PickerHueBar ColorPicker: bar for Hue, rectangle for Sat/Value.
 		@tfield int PickerHueWheel ColorPicker: wheel for Hue, triangle for Sat/Value.
+		@tfield int PickerNoRotate ColorPicker: disable rotation of the hue wheel triangle.
 		@tfield int InputRGB ColorEdit, ColorPicker: input and output data in RGB format.
 		@tfield int InputHSV ColorEdit, ColorPicker: input and output data in HSV format.
 		@tfield int DefaultOptions
@@ -337,9 +395,12 @@ namespace sol_ImGui
 			"NoSidePreview", ImGuiColorEditFlags_NoSidePreview,
 			"NoDragDrop", ImGuiColorEditFlags_NoDragDrop,
 			"NoBorder", ImGuiColorEditFlags_NoBorder,
+			"NoColorMarkers", ImGuiColorEditFlags_NoColorMarkers,
+			"AlphaOpaque", ImGuiColorEditFlags_AlphaOpaque,
+			"AlphaNoBg", ImGuiColorEditFlags_AlphaNoBg,
 
 			"AlphaBar", ImGuiColorEditFlags_AlphaBar,
-			"AlphaPreview", ImGuiColorEditFlags_AlphaPreview,
+			"AlphaPreview", 1 << 17, // Handled by the Lua bindings, which keep the pre-1.91.8 opaque default
 			"AlphaPreviewHalf", ImGuiColorEditFlags_AlphaPreviewHalf,
 			"HDR", ImGuiColorEditFlags_HDR,
 			"DisplayRGB", ImGuiColorEditFlags_DisplayRGB,
@@ -349,6 +410,7 @@ namespace sol_ImGui
 			"Float", ImGuiColorEditFlags_Float,
 			"PickerHueBar", ImGuiColorEditFlags_PickerHueBar,
 			"PickerHueWheel", ImGuiColorEditFlags_PickerHueWheel,
+			"PickerNoRotate", ImGuiColorEditFlags_PickerNoRotate,
 			"InputRGB", ImGuiColorEditFlags_InputRGB,
 			"InputHSV", ImGuiColorEditFlags_InputHSV,
 			"DefaultOptions", ImGuiColorEditFlags_DefaultOptions_
@@ -360,10 +422,15 @@ namespace sol_ImGui
 		Enum with a list of ImGui ImGuiSliderFlags.
 
 		@tfield int None
-		@tfield int AlwaysClamp Clamp value to min/max bounds when input manually with CTRL+Click. By default CTRL+Click allows going out of bounds.
+		@tfield int AlwaysClamp ClampOnInput + ClampZeroRange.
 		@tfield int Logarithmic Make the widget logarithmic (linear otherwise). Consider using ImGuiSliderFlags_NoRoundToFormat with this if using a format-string with small amount of digits.
 		@tfield int NoRoundToFormat Disable rounding underlying value to match precision of the display format string (e.g. %.3f values are rounded to those 3 digits)
 		@tfield int NoInput Disable CTRL+Click or Enter key allowing to input text directly into the widget
+		@tfield int WrapAround Enable wrapping around from max to min and from min to max. Only supported by DragXXX() functions for now.
+		@tfield int ClampOnInput Clamp value to min/max bounds when input manually with Ctrl+Click. By default Ctrl+Click allows going out of bounds.
+		@tfield int ClampZeroRange Clamp even if min==max==0.0f. Otherwise due to legacy reason DragXXX functions don't clamp with those values.
+		@tfield int NoSpeedTweaks Disable keyboard modifiers altering tweak speed. Useful if you want to alter tweak speed yourself based on your own logic.
+		@tfield int ColorMarkers DragScalarN(), SliderScalarN(): Draw R/G/B/A color markers on each component.
 		@tfield int InvalidMask We treat using those bits as being potentially a 'float power' argument from the previous API that has got miscast to this enum, and will trigger an assert if needed.
 
 		@table ImGuiSliderFlags
@@ -375,6 +442,11 @@ namespace sol_ImGui
 			"Logarithmic", ImGuiSliderFlags_Logarithmic,
 			"NoRoundToFormat", ImGuiSliderFlags_NoRoundToFormat,
 			"NoInput", ImGuiSliderFlags_NoInput,
+			"WrapAround", ImGuiSliderFlags_WrapAround,
+			"ClampOnInput", ImGuiSliderFlags_ClampOnInput,
+			"ClampZeroRange", ImGuiSliderFlags_ClampZeroRange,
+			"NoSpeedTweaks", ImGuiSliderFlags_NoSpeedTweaks,
+			"ColorMarkers", ImGuiSliderFlags_ColorMarkers,
 			"InvalidMask", ImGuiSliderFlags_InvalidMask_
 		);
 #pragma endregion ImGuiSliderFlags
@@ -401,26 +473,26 @@ namespace sol_ImGui
 
 		//@section ImGuiMod
 		/***
-		Enum with a list of ImGui Key Modifiers.
+		Enum with a list of ImGui Key Modifiers. Add them to an ImGuiKey to make a key chord, e.g. ImGuiMod.Ctrl + ImGuiKey.S
 
 		@tfield int None
 		@tfield int Ctrl Ctrl
 		@tfield int Shift Shift
 		@tfield int Alt Option/Menu
 		@tfield int Super Cmd/Super/Windows
-		@tfield int Shortcut Alias for Ctrl (non-macOS) _or_ Super (macOS).
+		@tfield int Shortcut Legacy alias for Ctrl.
 		@tfield int Mask 5-bits
 
 		@table ImGuiMod
 		*/
 #pragma region ImGuiMod
 		lua.new_enum("ImGuiMod",
-			"None", ImGuiMouseCursor_None,
+			"None", ImGuiMod_None,
 			"Ctrl", ImGuiMod_Ctrl,
 			"Shift", ImGuiMod_Shift,
 			"Alt", ImGuiMod_Alt,
 			"Super", ImGuiMod_Super,
-			"Shortcut", ImGuiMod_Shortcut,
+			"Shortcut", ImGuiMod_Ctrl,
 			"Mask", ImGuiMod_Mask_
 		);
 #pragma endregion ImGuiMod
@@ -438,6 +510,8 @@ namespace sol_ImGui
 		@tfield int ResizeNESW When hovering over the bottom-left corner of a window
 		@tfield int ResizeNWSE When hovering over the bottom-right corner of a window
 		@tfield int Hand (Unused by Dear ImGui functions. Use for e.g. hyperlinks)
+		@tfield int Wait When waiting for something to process/load.
+		@tfield int Progress When waiting for something to process/load, but application is still interactive.
 		@tfield int NotAllowed When hovering something with disallowed interaction. Usually a crossed circle.
 		@tfield int COUNT
 
@@ -454,6 +528,8 @@ namespace sol_ImGui
 			"ResizeNESW", ImGuiMouseCursor_ResizeNESW,
 			"ResizeNWSE", ImGuiMouseCursor_ResizeNWSE,
 			"Hand", ImGuiMouseCursor_Hand,
+			"Wait", ImGuiMouseCursor_Wait,
+			"Progress", ImGuiMouseCursor_Progress,
 			"NotAllowed", ImGuiMouseCursor_NotAllowed,
 			"COUNT", ImGuiMouseCursor_COUNT
 		);
@@ -546,5 +622,41 @@ namespace sol_ImGui
 			"HighlightHoveredColumn",ImGuiTableFlags_HighlightHoveredColumn
 		);
 #pragma endregion ImGuiTableFlags
+
+		//@section ImDrawFlags
+		/***
+		Enum with a list of ImDrawFlags. Used by DrawList functions such as AddRect() and PathStroke().
+
+		@tfield int None
+		@tfield int Closed PathStroke(), AddPolyline(): specify that shape should be closed.
+		@tfield int RoundCornersTopLeft AddRect(), AddRectFilled(), PathRect(): round top-left corner only (when rounding > 0.0f, we default to all corners).
+		@tfield int RoundCornersTopRight AddRect(), AddRectFilled(), PathRect(): round top-right corner only.
+		@tfield int RoundCornersBottomLeft AddRect(), AddRectFilled(), PathRect(): round bottom-left corner only.
+		@tfield int RoundCornersBottomRight AddRect(), AddRectFilled(), PathRect(): round bottom-right corner only.
+		@tfield int RoundCornersNone AddRect(), AddRectFilled(), PathRect(): disable rounding on all corners (when rounding > 0.0f).
+		@tfield int RoundCornersTop
+		@tfield int RoundCornersBottom
+		@tfield int RoundCornersLeft
+		@tfield int RoundCornersRight
+		@tfield int RoundCornersAll
+
+		@table ImDrawFlags
+		*/
+#pragma region ImDrawFlags
+		lua.new_enum("ImDrawFlags",
+			"None", ImDrawFlags_None,
+			"Closed", ImDrawFlags_Closed,
+			"RoundCornersTopLeft", ImDrawFlags_RoundCornersTopLeft,
+			"RoundCornersTopRight", ImDrawFlags_RoundCornersTopRight,
+			"RoundCornersBottomLeft", ImDrawFlags_RoundCornersBottomLeft,
+			"RoundCornersBottomRight", ImDrawFlags_RoundCornersBottomRight,
+			"RoundCornersNone", ImDrawFlags_RoundCornersNone,
+			"RoundCornersTop", ImDrawFlags_RoundCornersTop,
+			"RoundCornersBottom", ImDrawFlags_RoundCornersBottom,
+			"RoundCornersLeft", ImDrawFlags_RoundCornersLeft,
+			"RoundCornersRight", ImDrawFlags_RoundCornersRight,
+			"RoundCornersAll", ImDrawFlags_RoundCornersAll
+		);
+#pragma endregion ImDrawFlags
     }
 }
