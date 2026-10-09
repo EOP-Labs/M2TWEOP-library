@@ -99,7 +99,7 @@ namespace sol_ImGui
 		@tfield int ScrollbarGrabHovered
 		@tfield int ScrollbarGrabActive
 		@tfield int CheckMark Checkbox tick and RadioButton circle
-		@tfield int CheckboxSelectedBg Checkbox background when Selected, otherwise use FrameBg
+		@tfield int CheckboxSelectedBg Checkbox background when checked. EOP keeps this matching FrameBg, as before; use ImGui.PushStyleColor to give checked checkboxes a different colour.
 		@tfield int SliderGrab
 		@tfield int SliderGrabActive
 		@tfield int Button

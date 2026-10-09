@@ -5,6 +5,7 @@
 
 #include "pch.h"
 #include "sol_ImGui.h"
+#include "imgui_internal.h"
 
 namespace sol_ImGui
 {
@@ -30,6 +31,17 @@ namespace sol_ImGui
 		if (flags & ImGuiColorEditFlags_AlphaMask_)
 			return flags;
 		return flags | ImGuiColorEditFlags_AlphaOpaque;
+	}
+
+	// 1.91 draws checked checkboxes with CheckboxSelectedBg instead of FrameBg; keep following FrameBg
+	// (including PushStyleColor(FrameBg)) unless the script pushed CheckboxSelectedBg itself
+	static bool pushLegacyCheckboxColor()
+	{
+		for (const ImGuiColorMod& mod : GImGui->ColorStack)
+			if (mod.Col == ImGuiCol_CheckboxSelectedBg)
+				return false;
+		ImGui::PushStyleColor(ImGuiCol_CheckboxSelectedBg, ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
+		return true;
 	}
 
 	// 1.91.3 started clamping drags when v_min == v_max != 0, before that they were unclamped
@@ -562,11 +574,21 @@ namespace sol_ImGui
 	std::tuple<bool, bool> Checkbox(const std::string& label, bool v)
 	{
 		bool value{ v };
+		const bool pushedColor = pushLegacyCheckboxColor();
 		bool pressed = ImGui::Checkbox(label.c_str(), &value);
+		if (pushedColor)
+			ImGui::PopStyleColor();
 
 		return std::make_tuple(value, pressed);
 	}
-	bool CheckboxFlags(const std::string& label, int flags, int flags_value) { return ImGui::CheckboxFlags(label.c_str(), &flags, flags_value); }
+	bool CheckboxFlags(const std::string& label, int flags, int flags_value)
+	{
+		const bool pushedColor = pushLegacyCheckboxColor();
+		bool pressed = ImGui::CheckboxFlags(label.c_str(), &flags, flags_value);
+		if (pushedColor)
+			ImGui::PopStyleColor();
+		return pressed;
+	}
 	bool RadioButton(const std::string& label, bool active) { return ImGui::RadioButton(label.c_str(), active); }
 	std::tuple<int, bool> RadioButton(const std::string& label, int v, int vButton) { bool ret{ ImGui::RadioButton(label.c_str(), &v, vButton) }; return std::make_tuple(v, ret); }
 	void ProgressBar(float fraction) { ImGui::ProgressBar(fraction); }

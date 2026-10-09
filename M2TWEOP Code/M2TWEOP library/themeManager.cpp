@@ -153,7 +153,6 @@ void setStyle(std::string themeName)
 
 	// Colors added after imgui 1.90 aren't in the theme files, derive them so themes look the same as before
 	ImGuiStyle& style = ImGui::GetStyle();
-	style.Colors[ImGuiCol_CheckboxSelectedBg] = style.Colors[ImGuiCol_FrameBg];
 	style.Colors[ImGuiCol_InputTextCursor] = style.Colors[ImGuiCol_Text];
 	style.Colors[ImGuiCol_UnsavedMarker] = style.Colors[ImGuiCol_Text];
 	style.Colors[ImGuiCol_TabSelectedOverline] = style.Colors[ImGuiCol_HeaderActive];

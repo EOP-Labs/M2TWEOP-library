@@ -224,6 +224,8 @@ void graphicsD3D::onDrawAllGameStuff()
 	ImGui::NewFrame();
 	// imgui 1.92.9 stopped writing typed Drag/Slider/Input values back on each keystroke; keep the old behaviour for scripts
 	ImGui::PushItemFlag(ImGuiItemFlags_LiveEditOnInputScalar, true);
+	// Checked checkboxes used FrameBg before imgui 1.91, keep them matching if scripts change the style at runtime
+	ImGui::GetStyle().Colors[ImGuiCol_CheckboxSelectedBg] = ImGui::GetStyle().Colors[ImGuiCol_FrameBg];
 
 	auto& developerMode = globals::dataS.Modules.developerMode;
 	developerMode.update();

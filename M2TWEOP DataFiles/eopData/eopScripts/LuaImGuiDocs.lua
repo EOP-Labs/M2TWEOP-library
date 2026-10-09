@@ -3223,7 +3223,7 @@ ImGuiCol = {
     ---@type integer
     CheckMark = nil,
 
-    ---Checkbox background when Selected, otherwise use FrameBg
+    ---Checkbox background when checked. EOP keeps this matching FrameBg, as before; use ImGui.PushStyleColor to give checked checkboxes a different colour.
     ---@type integer
     CheckboxSelectedBg = nil,
 
