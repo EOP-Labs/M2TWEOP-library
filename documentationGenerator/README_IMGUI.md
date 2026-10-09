@@ -6,7 +6,7 @@
 </p>
 
 <p>
-  The current bindings are based on <a href="https://github.com/ocornut/imgui/releases/tag/v1.90.2">ImGUI version 1.90.2</a>
+  The current bindings are based on <a href="https://github.com/ocornut/imgui/releases/tag/v1.92.9b">ImGUI version 1.92.9b</a>. If you are upgrading scripts written for 1.90.2, read the <a href="https://github.com/youneuoy/M2TWEOP-library/blob/master/documentationGenerator/IMGUI_UPGRADE_1.92.md">ImGui 1.92 upgrade guide</a>.
 
   You can find all the supported bindings in <a href="https://github.com/youneuoy/M2TWEOP-library/blob/master/M2TWEOP%20DataFiles/eopData/eopScripts/LuaImGuiDocs.lua">LuaImGuiDocs.lua</a>
 </p>

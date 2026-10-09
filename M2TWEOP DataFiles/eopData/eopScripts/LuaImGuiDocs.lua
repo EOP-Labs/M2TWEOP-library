@@ -129,7 +129,7 @@ function ImGui.SetWindowCollapsed(name, collapsed, condition) end
 ---@param name string? optional
 function ImGui.SetWindowFocus(name) end 
 
---- Set font scale.
+--- Set font scale. Legacy: prefer ImGui.PushFont(nil, size) or style.FontScaleMain.
 ---@param scale number 
 function ImGui.SetWindowFontScale(scale) end 
 
@@ -209,9 +209,20 @@ function ImGui.PushStyleVar(styleVar, value, valY) end
 ---@param count integer? optional
 function ImGui.PopStyleVar(count) end 
 
---- Use nil as a shortcut to push default font.
+--- Modify only the X component of an ImVec2 style variable. Always use this if you modify the style after NewFrame().
+---@param idx integer use ImGuiStyleVar enum
+---@param valX number 
+function ImGui.PushStyleVarX(idx, valX) end 
+
+--- Modify only the Y component of an ImVec2 style variable. Always use this if you modify the style after NewFrame().
+---@param idx integer use ImGuiStyleVar enum
+---@param valY number 
+function ImGui.PushStyleVarY(idx, valY) end 
+
+--- Push a font, optionally at a specific size. Fonts can be drawn at any size without loading them again. ImGui.PushFont(nil) pushes the default font. ImGui.PushFont(nil, size) keeps the current font and only changes the size. A size of 0 keeps the current size.
 ---@param font ImFont 
-function ImGui.PushFont(font) end 
+---@param fontSize number? optional
+function ImGui.PushFont(font, fontSize) end 
 
 --- Pop font.
 function ImGui.PopFont() end 
@@ -284,6 +295,14 @@ function ImGui.PushButtonRepeat(doRepeat) end
 
 --- Pop buttom repeat.
 function ImGui.PopButtonRepeat() end 
+
+--- Modify a shared item flag for all following items until PopItemFlag() is called.
+---@param option integer use ImGuiItemFlags enum
+---@param enabled boolean 
+function ImGui.PushItemFlag(option, enabled) end 
+
+--- Pop item flag.
+function ImGui.PopItemFlag() end 
 
 --- Separator, generally horizontal. Inside a menu bar or in horizontal layout mode, this becomes a vertical separator.
 function ImGui.Separator() end 
@@ -474,6 +493,17 @@ function ImGui.Bullet() end
 --- Currently: formatted text with an horizontal line
 ---@param text string 
 function ImGui.SeparatorText(text) end 
+
+--- Hyperlink text button.
+---@param label string 
+---@return boolean clicked 
+function ImGui.TextLink(label) end 
+
+--- Hyperlink text button that opens the url (or the label if no url is given) in the default browser when clicked.
+---@param label string 
+---@param url string? optional
+---@return boolean clicked 
+function ImGui.TextLinkOpenURL(label, url) end 
 
 --- Image button.
 ---@param label string 
@@ -1104,6 +1134,10 @@ function ImGui.TableGetSortSpecs() end
 ---@return integer count 
 function ImGui.TableGetColumnCount() end 
 
+--- Return hovered column. Return -1 when table is not hovered. Return columns count if the unused space at the right of visible columns is hovered.
+---@return integer index 
+function ImGui.TableGetHoveredColumn() end 
+
 --- Return current column index.
 ---@return integer index 
 function ImGui.TableGetColumnIndex() end 
@@ -1369,6 +1403,22 @@ function ImGui.IsKeyPressed(key, doRepeat) end
 ---@return boolean result 
 function ImGui.IsKeyReleased(key) end 
 
+--- Was key chord (mods + key) pressed? Does not check focus, prefer Shortcut() in most cases.
+---@param keyChord integer? ImGuiKey value plus optional ImGuiMod values
+---@return boolean result 
+function ImGui.IsKeyChordPressed(keyChord) end 
+
+--- Was key chord pressed, routed to the current window? Only the focused window (by default) receives it, so other windows can't steal it.
+---@param keyChord integer? ImGuiKey value plus optional ImGuiMod values
+---@param flags integer? optional use ImGuiInputFlags enum
+---@return boolean result 
+function ImGui.Shortcut(keyChord, flags) end 
+
+--- Assign a keyboard shortcut to the next item. Pressing it activates the item, e.g. clicks a button.
+---@param keyChord integer? ImGuiKey value plus optional ImGuiMod values
+---@param flags integer? optional use ImGuiInputFlags enum (ImGuiInputFlags.Tooltip shows the shortcut on hover)
+function ImGui.SetNextItemShortcut(keyChord, flags) end 
+
 --- Uses provided repeat rate/delay. return a count, most often 0 or 1 but might be >1 if RepeatRate is small enough that DeltaTime > RepeatRate
 ---@param key integer 
 ---@param repeatDelay number 
@@ -1395,6 +1445,12 @@ function ImGui.IsMouseClicked(button, doRepeat) end
 ---@param button integer use MouseButton enum
 ---@return boolean result 
 function ImGui.IsMouseReleased(button) end 
+
+--- Delayed mouse release, e.g. to tell a single click from the start of a double-click. Use a delay > io.MouseDoubleClickTime.
+---@param button integer use MouseButton enum
+---@param delay number in seconds
+---@return boolean result 
+function ImGui.IsMouseReleasedWithDelay(button, delay) end 
 
 --- Did mouse button double-clicked? (note that a double-click will also report IsMouseClicked() == true).
 ---@param button integer use MouseButton enum
@@ -1519,6 +1575,18 @@ ImVec2 = {
 ---@class ImGuiStyle
 ImGuiStyle = { 
 
+    ---Current base font size before global scale factors are applied. Use ImGui.PushFont(nil, size) to modify. Use ImGui.GetFontSize() to obtain the scaled value.
+    ---@type number
+    FontSizeBase = nil,
+
+    ---Main global scale factor for all fonts.
+    ---@type number
+    FontScaleMain = nil,
+
+    ---Additional global scale factor from monitor DPI.
+    ---@type number
+    FontScaleDpi = nil,
+
     ---Global alpha applies to everything in Dear ImGui.
     ---@type number
     Alpha = nil,
@@ -1538,6 +1606,10 @@ ImGuiStyle = {
     ---Thickness of border around windows. Generally set to 0.0f or 1.0f. (Other values are not well tested and more CPU/GPU costly).
     ---@type number
     WindowBorderSize = nil,
+
+    ---Hit-testing extent outside/inside resizing border. Also extend determination of hovered window.
+    ---@type number
+    WindowBorderHoverPadding = nil,
 
     ---Minimum window size. This is a global setting. If you want to constrain individual windows, use SetNextWindowSizeConstraints().
     ---@type ImVec2
@@ -1611,6 +1683,10 @@ ImGuiStyle = {
     ---@type number
     ScrollbarRounding = nil,
 
+    ---Padding of scrollbar grab within its frame (same for both axes).
+    ---@type number
+    ScrollbarPadding = nil,
+
     ---Minimum width/height of a grab box for slider/scrollbar.
     ---@type number
     GrabMinSize = nil,
@@ -1623,6 +1699,14 @@ ImGuiStyle = {
     ---@type number
     LogSliderDeadzone = nil,
 
+    ---Rounding of Image() calls.
+    ---@type number
+    ImageRounding = nil,
+
+    ---Thickness of border around Image() calls.
+    ---@type number
+    ImageBorderSize = nil,
+
     ---Radius of upper corners of a tab. Set to 0.0f to have rectangular tabs.
     ---@type number
     TabRounding = nil,
@@ -1631,7 +1715,23 @@ ImGuiStyle = {
     ---@type number
     TabBorderSize = nil,
 
-    ---Minimum width for close button to appear on an unselected tab when hovered. Set to 0.0f to always show when hovering, set to FLT_MAX to never show close button unless selected.
+    ---Minimum tab width, to make tabs larger than their contents.
+    ---@type number
+    TabMinWidthBase = nil,
+
+    ---Minimum tab width after shrinking, when using ImGuiTabBarFlags.FittingPolicyMixed.
+    ---@type number
+    TabMinWidthShrink = nil,
+
+    ----1: always visible. 0.0f: visible when hovered. >0.0f: visible when hovered if minimum width.
+    ---@type number
+    TabCloseButtonMinWidthSelected = nil,
+
+    ----1: always visible. 0.0f: visible when hovered. >0.0f: visible when hovered if minimum width. FLT_MAX: never show close button when unselected.
+    ---@type number
+    TabCloseButtonMinWidthUnselected = nil,
+
+    ---Legacy name for TabCloseButtonMinWidthUnselected.
     ---@type number
     TabMinWidthForCloseButton = nil,
 
@@ -1639,9 +1739,57 @@ ImGuiStyle = {
     ---@type number
     TabBarBorderSize = nil,
 
+    ---Thickness of tab-bar overline, which highlights the selected tab-bar.
+    ---@type number
+    TabBarOverlineSize = nil,
+
     ---Angle of angled headers (supported values range from -50.0f degrees to +50.0f degrees).
     ---@type number
     TableAngledHeadersAngle = nil,
+
+    ---Alignment of angled headers within the cell.
+    ---@type ImVec2
+    TableAngledHeadersTextAlign = nil,
+
+    ---Default way to draw lines connecting TreeNode hierarchy: ImGuiTreeNodeFlags.DrawLinesNone, DrawLinesFull or DrawLinesToNodes.
+    ---@type integer
+    TreeLinesFlags = nil,
+
+    ---Thickness of outlines when using ImGuiTreeNodeFlags.DrawLines.
+    ---@type number
+    TreeLinesSize = nil,
+
+    ---Radius of lines connecting child nodes to the vertical line.
+    ---@type number
+    TreeLinesRounding = nil,
+
+    ---Radius of MenuItem, BeginMenu rounding.
+    ---@type number
+    MenuItemRounding = nil,
+
+    ---Radius of Selectable rounding.
+    ---@type number
+    SelectableRounding = nil,
+
+    ---Radius of the drag and drop target frame. When <0.0f: use FrameRounding.
+    ---@type number
+    DragDropTargetRounding = nil,
+
+    ---Thickness of the drag and drop target border.
+    ---@type number
+    DragDropTargetBorderSize = nil,
+
+    ---Size to expand the drag and drop target from actual target item size.
+    ---@type number
+    DragDropTargetPadding = nil,
+
+    ---Size of R/G/B/A color markers for ColorEdit4() and for Drags/Sliders when using ImGuiSliderFlags.ColorMarkers.
+    ---@type number
+    ColorMarkerSize = nil,
+
+    ---Thickness of cursor/caret in InputText().
+    ---@type number
+    InputTextCursorSize = nil,
 
     ---Side of the color button in the ColorEdit4 widget (left/right). Defaults to ImGuiDir.Right.
     ---@type integer
@@ -1654,6 +1802,10 @@ ImGuiStyle = {
     ---Alignment of selectable text. Defaults to (0.0f, 0.0f) (top-left aligned). It's generally important to keep this left-aligned if you want to lay multiple items on a same line.
     ---@type ImVec2
     SelectableTextAlign = nil,
+
+    ---Thickness of border in Separator(). Must be >= 1.0f.
+    ---@type number
+    SeparatorSize = nil,
 
     ---Thickkness of border in SeparatorText()
     ---@type number
@@ -1699,7 +1851,7 @@ ImGuiStyle = {
     ---@type number
     CircleTessellationMaxError = nil,
 
-    ---Maximum: 52
+    ---Maximum: 62
     ---@type table<integer, ImVec4>
     Colors = nil,
 
@@ -1963,10 +2115,15 @@ function ImDrawList:PathLineToMergeDuplicate(posX, posY) end
 ---@param color integer 
 function ImDrawList:PathFillConvex(color) end 
 
+--- Path Fill Concave. Slower than PathFillConvex, but works with any non self-intersecting shape.
+---@param color integer 
+function ImDrawList:PathFillConcave(color) end 
+
 --- Path Stroke.
 ---@param color integer 
----@param flags integer? optional
-function ImDrawList:PathStroke(color, flags) end 
+---@param flags integer? optional use ImDrawFlags enum
+---@param thickness number? optional
+function ImDrawList:PathStroke(color, flags, thickness) end 
 
 --- Path Arc To.
 ---@param centerX number 
@@ -2050,7 +2207,7 @@ ImGuiIO = {
     ---@type string
     LogFilename = nil,
 
-    ---Global scale all fonts
+    ---Legacy: global scale all fonts. Use ImGuiStyle.FontScaleMain instead.
     ---@type number
     FontGlobalScale = nil,
 
@@ -2117,6 +2274,14 @@ ImGuiIO = {
     ---Alternative to WantCaptureMouse: (WantCaptureMouse == true && WantCaptureMouseUnlessPopupClose == false) when a click over void is expected to close a popup.
     ---@type boolean
     WantCaptureMouseUnlessPopupClose = nil,
+
+    ---Highlight and show a warning tooltip when multiple items have the same ID. Off by default in EOP, enable it while developing scripts.
+    ---@type boolean
+    ConfigDebugHighlightIdConflicts = nil,
+
+    ---Show a tooltip when ImGui recovers from a script error such as a missing End(). Off by default in EOP, enable it while developing scripts.
+    ---@type boolean
+    ConfigErrorRecoveryEnableTooltip = nil,
 
 }
 
@@ -2226,7 +2391,7 @@ ImGuiWindowFlags = {
 
 }
 
----Enum with a list of ImGui Focused Flags.
+---Enum with a list of ImGui Child Flags.
 ---@class ImGuiChildFlags
 ImGuiChildFlags = { 
 
@@ -2234,6 +2399,10 @@ ImGuiChildFlags = {
     None = nil,
 
     ---Show an outer border and enable WindowPadding. (Important: this is always == 1 == true for legacy reason)
+    ---@type integer
+    Borders = nil,
+
+    ---Legacy name for Borders.
     ---@type integer
     Border = nil,
 
@@ -2264,6 +2433,10 @@ ImGuiChildFlags = {
     ---Style the child window like a framed item: use FrameBg, FrameRounding, FrameBorderSize, FramePadding instead of ChildBg, ChildRounding, ChildBorderSize, WindowPadding.
     ---@type integer
     FrameStyle = nil,
+
+    ---Share focus scope, allow keyboard/gamepad navigation to cross over parent border to this child or between sibling child windows.
+    ---@type integer
+    NavFlattened = nil,
 
 }
 
@@ -2358,6 +2531,22 @@ ImGuiInputTextFlags = {
     ---@type integer
     EscapeClearsAll = nil,
 
+    ---InputFloat(), InputInt(), InputScalar() etc. only: parse empty string as zero value.
+    ---@type integer
+    ParseEmptyRefVal = nil,
+
+    ---InputFloat(), InputInt(), InputScalar() etc. only: when value is zero, do not display it. Generally used with ParseEmptyRefVal.
+    ---@type integer
+    DisplayEmptyRefVal = nil,
+
+    ---When text doesn't fit, elide left side to ensure right side stays visible. Useful for path/filenames. Single-line only!
+    ---@type integer
+    ElideLeft = nil,
+
+    ---InputTextMultiline(): word-wrap lines that are too long.
+    ---@type integer
+    WordWrap = nil,
+
 }
 
 ---Enum with a list of ImGui Tree Node Flags.
@@ -2419,12 +2608,40 @@ ImGuiTreeNodeFlags = {
     ---@type integer
     SpanFullWidth = nil,
 
-    ---(WIP) Nav: left direction may move to this TreeNode() from any of its child (items submitted between TreeNode and TreePop)
+    ---Narrow hit box + narrow hovering highlight, will only cover the label text.
+    ---@type integer
+    SpanLabelWidth = nil,
+
+    ---Frame will span all columns of its container table (label will still fit in current column)
+    ---@type integer
+    SpanAllColumns = nil,
+
+    ---Label will span all columns of its container table
+    ---@type integer
+    LabelSpanAllColumns = nil,
+
+    ---Nav: left arrow moves back to parent. This is processed in TreePop() when there's an unfulfilled Left nav request remaining.
+    ---@type integer
+    NavLeftJumpsToParent = nil,
+
+    ---Legacy name for NavLeftJumpsToParent.
     ---@type integer
     NavLeftJumpsBackHere = nil,
 
     ---@type integer
     CollapsingHeader = nil,
+
+    ---No lines drawn
+    ---@type integer
+    DrawLinesNone = nil,
+
+    ---Horizontal lines to child nodes. Vertical line drawn down to TreePop() position: cover full contents. Faster (for large trees).
+    ---@type integer
+    DrawLinesFull = nil,
+
+    ---Horizontal lines to child nodes. Vertical line drawn down to bottom-most child node. Slower (for large trees).
+    ---@type integer
+    DrawLinesToNodes = nil,
 
 }
 
@@ -2435,21 +2652,22 @@ ImGuiPopupFlags = {
     ---@type integer
     None = nil,
 
-    ---For BeginPopupContext*(): open on Left Mouse release. Guaranteed to always be == 0 (same as ImGuiMouseButton_Left)
+    ---For BeginPopupContext*(): open on Left Mouse release. Also used when flags are passed without a mouse button, as before.
     ---@type integer
     MouseButtonLeft = nil,
 
-    ---For BeginPopupContext*(): open on Right Mouse release. Guaranteed to always be == 1 (same as ImGuiMouseButton_Right)
+    ---For BeginPopupContext*(): open on Right Mouse release (default when no flags are passed).
     ---@type integer
     MouseButtonRight = nil,
 
-    ---For BeginPopupContext*(): open on Middle Mouse release. Guaranteed to always be == 2 (same as ImGuiMouseButton_Middle)
+    ---For BeginPopupContext*(): open on Middle Mouse release.
     ---@type integer
     MouseButtonMiddle = nil,
 
     ---@type integer
     MouseButtonMask_ = nil,
 
+    ---Same as MouseButtonRight.
     ---@type integer
     MouseButtonDefault_ = nil,
 
@@ -2481,7 +2699,11 @@ ImGuiSelectableFlags = {
     ---@type integer
     None = nil,
 
-    ---Clicking this doesn't close parent popup window
+    ---Clicking this doesn't close parent popup window (overrides ImGuiItemFlags.AutoClosePopups)
+    ---@type integer
+    NoAutoClosePopups = nil,
+
+    ---Legacy name for NoAutoClosePopups.
     ---@type integer
     DontClosePopups = nil,
 
@@ -2500,6 +2722,14 @@ ImGuiSelectableFlags = {
     ---(WIP) Hit testing to allow subsequent widgets to overlap this one
     ---@type integer
     AllowOverlap = nil,
+
+    ---Make the item be displayed as if it is hovered
+    ---@type integer
+    Highlight = nil,
+
+    ---Auto-select when moved into, unless Ctrl is held. Automatic when in a BeginMultiSelect() block.
+    ---@type integer
+    SelectOnNav = nil,
 
 }
 
@@ -2578,11 +2808,23 @@ ImGuiTabBarFlags = {
     ---@type integer
     NoTooltip = nil,
 
-    ---Resize tabs when they don't fit
+    ---Draw selected overline markers over selected tab
+    ---@type integer
+    DrawSelectedOverline = nil,
+
+    ---Shrink down tabs when they don't fit, until width is style.TabMinWidthShrink, then enable scrolling buttons (default)
+    ---@type integer
+    FittingPolicyMixed = nil,
+
+    ---Shrink down tabs when they don't fit
+    ---@type integer
+    FittingPolicyShrink = nil,
+
+    ---Legacy name for FittingPolicyShrink.
     ---@type integer
     FittingPolicyResizeDown = nil,
 
-    ---Add scroll buttons when tabs don't fit
+    ---Enable scrolling buttons when tabs don't fit
     ---@type integer
     FittingPolicyScroll = nil,
 
@@ -2749,6 +2991,104 @@ ImGuiHoveredFlags = {
 
 }
 
+---Enum with a list of ImGui Item Flags. Use with ImGui.PushItemFlag().
+---@class ImGuiItemFlags
+ImGuiItemFlags = { 
+
+    ---@type integer
+    None = nil,
+
+    ---Disable keyboard tabbing. This is a "lighter" version of NoNav.
+    ---@type integer
+    NoTabStop = nil,
+
+    ---Disable any form of focusing (keyboard/gamepad directional navigation and SetKeyboardFocusHere() calls).
+    ---@type integer
+    NoNav = nil,
+
+    ---Disable item being a candidate for default focus (e.g. used by title bar items).
+    ---@type integer
+    NoNavDefaultFocus = nil,
+
+    ---Any button-like behavior will have repeat mode enabled (based on io.KeyRepeatDelay and io.KeyRepeatRate values). Note that you can also call IsItemActive() after any button to tell if it is being held.
+    ---@type integer
+    ButtonRepeat = nil,
+
+    ---MenuItem()/Selectable() automatically close their parent popup window. Enabled by default.
+    ---@type integer
+    AutoClosePopups = nil,
+
+    ---Allow submitting an item with the same identifier as an item already submitted this frame without triggering a warning tooltip.
+    ---@type integer
+    AllowDuplicateId = nil,
+
+    ---Disable interactions (DOES NOT affect visuals). Prefer using BeginDisabled()/EndDisabled() which also affects visuals.
+    ---@type integer
+    Disabled = nil,
+
+    ---InputText(), InputTextMultiline(): write back text to buffer while typing, instead of on validation. Enabled by default.
+    ---@type integer
+    LiveEditOnInputText = nil,
+
+    ---InputFloat(), Drag/Slider (when Ctrl+Click or Enter is used to type a value): write back value while typing, instead of on validation. Disabled by default.
+    ---@type integer
+    LiveEditOnInputScalar = nil,
+
+    ---LiveEditOnInputText + LiveEditOnInputScalar
+    ---@type integer
+    LiveEditOnInput = nil,
+
+}
+
+---Enum with a list of ImGui Input Flags. Use with ImGui.Shortcut() and ImGui.SetNextItemShortcut().
+---@class ImGuiInputFlags
+ImGuiInputFlags = { 
+
+    ---@type integer
+    None = nil,
+
+    ---Enable repeat. Return true on successive repeats.
+    ---@type integer
+    Repeat = nil,
+
+    ---Route to active item only.
+    ---@type integer
+    RouteActive = nil,
+
+    ---Route to windows in the focus stack (default). Deep-most focused window takes inputs. Active item takes inputs over deep-most focused window.
+    ---@type integer
+    RouteFocused = nil,
+
+    ---Global route (unless a focused window or active item registered the route).
+    ---@type integer
+    RouteGlobal = nil,
+
+    ---Do not register route, poll keys directly.
+    ---@type integer
+    RouteAlways = nil,
+
+    ---Option: global route: higher priority than focused route (unless active item in focused route).
+    ---@type integer
+    RouteOverFocused = nil,
+
+    ---Option: global route: higher priority than active item. Unlikely you need to use that: will interfere with every active items, e.g. Ctrl+A registered by InputText will be overridden by this.
+    ---@type integer
+    RouteOverActive = nil,
+
+    ---Option: global route: will not be applied if underlying background/void is focused (== no Dear ImGui windows are focused). Useful for overlay applications.
+    ---@type integer
+    RouteUnlessBgFocused = nil,
+
+    ---Option: route evaluated from the point of view of root window rather than current window.
+    ---@type integer
+    RouteFromRootWindow = nil,
+
+    ---SetNextItemShortcut() only: show a tooltip when hovering item.
+    ---@type integer
+    Tooltip = nil,
+
+}
+
 ---Enum with a list of ImGui Dir.
 ---@class ImGuiDir
 ImGuiDir = { 
@@ -2883,6 +3223,10 @@ ImGuiCol = {
     ---@type integer
     CheckMark = nil,
 
+    ---Checkbox background when Selected, otherwise use FrameBg
+    ---@type integer
+    CheckboxSelectedBg = nil,
+
     ---@type integer
     SliderGrab = nil,
 
@@ -2927,19 +3271,47 @@ ImGuiCol = {
     ---@type integer
     ResizeGripActive = nil,
 
-    ---TabItem in a TabBar
+    ---InputText cursor/caret
+    ---@type integer
+    InputTextCursor = nil,
+
+    ---Tab background, when tab-bar is focused & tab is unselected
     ---@type integer
     Tab = nil,
 
+    ---Tab background, when hovered
     ---@type integer
     TabHovered = nil,
 
+    ---Tab background, when tab-bar is focused & tab is selected
+    ---@type integer
+    TabSelected = nil,
+
+    ---Tab horizontal overline, when tab-bar is focused & tab is selected
+    ---@type integer
+    TabSelectedOverline = nil,
+
+    ---Tab background, when tab-bar is unfocused & tab is unselected
+    ---@type integer
+    TabDimmed = nil,
+
+    ---Tab background, when tab-bar is unfocused & tab is selected
+    ---@type integer
+    TabDimmedSelected = nil,
+
+    ---Tab horizontal overline, when tab-bar is unfocused & tab is selected
+    ---@type integer
+    TabDimmedSelectedOverline = nil,
+
+    ---Legacy name for TabSelected.
     ---@type integer
     TabActive = nil,
 
+    ---Legacy name for TabDimmed.
     ---@type integer
     TabUnfocused = nil,
 
+    ---Legacy name for TabDimmedSelected.
     ---@type integer
     TabUnfocusedActive = nil,
 
@@ -2975,12 +3347,34 @@ ImGuiCol = {
     ---@type integer
     TableRowBgAlt = nil,
 
+    ---Hyperlink color
+    ---@type integer
+    TextLink = nil,
+
     ---@type integer
     TextSelectedBg = nil,
 
+    ---Tree node hierarchy outlines when using ImGuiTreeNodeFlags.DrawLinesFull/DrawLinesToNodes
+    ---@type integer
+    TreeLines = nil,
+
+    ---Rectangle border highlighting a drop target
     ---@type integer
     DragDropTarget = nil,
 
+    ---Rectangle background highlighting a drop target
+    ---@type integer
+    DragDropTargetBg = nil,
+
+    ---Unsaved Document marker (in window title and tabs)
+    ---@type integer
+    UnsavedMarker = nil,
+
+    ---Color of keyboard/gamepad navigation cursor/rectangle, when visible
+    ---@type integer
+    NavCursor = nil,
+
+    ---Legacy name for NavCursor.
     ---@type integer
     NavHighlight = nil,
 
@@ -3087,6 +3481,10 @@ ImGuiStyleVar = {
 
     ---float
     ---@type integer
+    ScrollbarPadding = nil,
+
+    ---float
+    ---@type integer
     GrabMinSize = nil,
 
     ---float
@@ -3095,11 +3493,63 @@ ImGuiStyleVar = {
 
     ---float
     ---@type integer
+    ImageRounding = nil,
+
+    ---float
+    ---@type integer
+    ImageBorderSize = nil,
+
+    ---float
+    ---@type integer
     TabRounding = nil,
 
     ---float
     ---@type integer
+    TabBorderSize = nil,
+
+    ---float
+    ---@type integer
+    TabMinWidthBase = nil,
+
+    ---float
+    ---@type integer
+    TabMinWidthShrink = nil,
+
+    ---float
+    ---@type integer
     TabBarBorderSize = nil,
+
+    ---float
+    ---@type integer
+    TabBarOverlineSize = nil,
+
+    ---float
+    ---@type integer
+    TableAngledHeadersAngle = nil,
+
+    ---ImVec2
+    ---@type integer
+    TableAngledHeadersTextAlign = nil,
+
+    ---float
+    ---@type integer
+    TreeLinesSize = nil,
+
+    ---float
+    ---@type integer
+    TreeLinesRounding = nil,
+
+    ---float
+    ---@type integer
+    MenuItemRounding = nil,
+
+    ---float
+    ---@type integer
+    SelectableRounding = nil,
+
+    ---float
+    ---@type integer
+    DragDropTargetRounding = nil,
 
     ---ImVec2
     ---@type integer
@@ -3108,6 +3558,10 @@ ImGuiStyleVar = {
     ---ImVec2
     ---@type integer
     SelectableTextAlign = nil,
+
+    ---float
+    ---@type integer
+    SeparatorSize = nil,
 
     ---float
     ---@type integer
@@ -3194,6 +3648,18 @@ ImGuiColorEditFlags = {
     ---@type integer
     NoBorder = nil,
 
+    ---ColorEdit: disable rendering R/G/B/A color marker. May also be disabled globally by setting style.ColorMarkerSize = 0.
+    ---@type integer
+    NoColorMarkers = nil,
+
+    ---ColorEdit, ColorPicker, ColorButton: disable alpha in the preview. Contrary to NoAlpha it may still be edited when calling ColorEdit4()/ColorPicker4().
+    ---@type integer
+    AlphaOpaque = nil,
+
+    ---ColorEdit, ColorPicker, ColorButton: disable rendering a checkerboard background behind transparent color.
+    ---@type integer
+    AlphaNoBg = nil,
+
     ---ColorEdit, ColorPicker: show vertical alpha bar/gradient in picker.
     ---@type integer
     AlphaBar = nil,
@@ -3202,7 +3668,7 @@ ImGuiColorEditFlags = {
     ---@type integer
     AlphaPreview = nil,
 
-    ---ColorEdit, ColorPicker, ColorButton: display half opaque / half checkerboard, instead of opaque.
+    ---ColorEdit, ColorPicker, ColorButton: display half opaque / half transparent preview.
     ---@type integer
     AlphaPreviewHalf = nil,
 
@@ -3238,6 +3704,10 @@ ImGuiColorEditFlags = {
     ---@type integer
     PickerHueWheel = nil,
 
+    ---ColorPicker: disable rotation of the hue wheel triangle.
+    ---@type integer
+    PickerNoRotate = nil,
+
     ---ColorEdit, ColorPicker: input and output data in RGB format.
     ---@type integer
     InputRGB = nil,
@@ -3258,7 +3728,7 @@ ImGuiSliderFlags = {
     ---@type integer
     None = nil,
 
-    ---Clamp value to min/max bounds when input manually with CTRL+Click. By default CTRL+Click allows going out of bounds.
+    ---ClampOnInput + ClampZeroRange.
     ---@type integer
     AlwaysClamp = nil,
 
@@ -3273,6 +3743,26 @@ ImGuiSliderFlags = {
     ---Disable CTRL+Click or Enter key allowing to input text directly into the widget
     ---@type integer
     NoInput = nil,
+
+    ---Enable wrapping around from max to min and from min to max. Only supported by DragXXX() functions for now.
+    ---@type integer
+    WrapAround = nil,
+
+    ---Clamp value to min/max bounds when input manually with Ctrl+Click. By default Ctrl+Click allows going out of bounds.
+    ---@type integer
+    ClampOnInput = nil,
+
+    ---Clamp even if min==max==0.0f. Otherwise due to legacy reason DragXXX functions don't clamp with those values.
+    ---@type integer
+    ClampZeroRange = nil,
+
+    ---Disable keyboard modifiers altering tweak speed. Useful if you want to alter tweak speed yourself based on your own logic.
+    ---@type integer
+    NoSpeedTweaks = nil,
+
+    ---DragScalarN(), SliderScalarN(): Draw R/G/B/A color markers on each component.
+    ---@type integer
+    ColorMarkers = nil,
 
     ---We treat using those bits as being potentially a 'float power' argument from the previous API that has got miscast to this enum, and will trigger an assert if needed.
     ---@type integer
@@ -3298,7 +3788,7 @@ ImGuiMouseButton = {
 
 }
 
----Enum with a list of ImGui Key Modifiers.
+---Enum with a list of ImGui Key Modifiers. Add them to an ImGuiKey to make a key chord, e.g. ImGuiMod.Ctrl + ImGuiKey.S
 ---@class ImGuiMod
 ImGuiMod = { 
 
@@ -3321,7 +3811,7 @@ ImGuiMod = {
     ---@type integer
     Super = nil,
 
-    ---Alias for Ctrl (non-macOS) _or_ Super (macOS).
+    ---Legacy alias for Ctrl.
     ---@type integer
     Shortcut = nil,
 
@@ -3368,6 +3858,14 @@ ImGuiMouseCursor = {
     ---(Unused by Dear ImGui functions. Use for e.g. hyperlinks)
     ---@type integer
     Hand = nil,
+
+    ---When waiting for something to process/load.
+    ---@type integer
+    Wait = nil,
+
+    ---When waiting for something to process/load, but application is still interactive.
+    ---@type integer
+    Progress = nil,
 
     ---When hovering something with disallowed interaction. Usually a crossed circle.
     ---@type integer
@@ -3524,6 +4022,54 @@ ImGuiTableFlags = {
     ---Highlight column headers when hovered (may evolve into a fuller highlight)
     ---@type integer
     HighlightHoveredColumn = nil,
+
+}
+
+---Enum with a list of ImDrawFlags. Used by DrawList functions such as AddRect() and PathStroke().
+---@class ImDrawFlags
+ImDrawFlags = { 
+
+    ---@type integer
+    None = nil,
+
+    ---PathStroke(), AddPolyline(): specify that shape should be closed.
+    ---@type integer
+    Closed = nil,
+
+    ---AddRect(), AddRectFilled(), PathRect(): round top-left corner only (when rounding > 0.0f, we default to all corners).
+    ---@type integer
+    RoundCornersTopLeft = nil,
+
+    ---AddRect(), AddRectFilled(), PathRect(): round top-right corner only.
+    ---@type integer
+    RoundCornersTopRight = nil,
+
+    ---AddRect(), AddRectFilled(), PathRect(): round bottom-left corner only.
+    ---@type integer
+    RoundCornersBottomLeft = nil,
+
+    ---AddRect(), AddRectFilled(), PathRect(): round bottom-right corner only.
+    ---@type integer
+    RoundCornersBottomRight = nil,
+
+    ---AddRect(), AddRectFilled(), PathRect(): disable rounding on all corners (when rounding > 0.0f).
+    ---@type integer
+    RoundCornersNone = nil,
+
+    ---@type integer
+    RoundCornersTop = nil,
+
+    ---@type integer
+    RoundCornersBottom = nil,
+
+    ---@type integer
+    RoundCornersLeft = nil,
+
+    ---@type integer
+    RoundCornersRight = nil,
+
+    ---@type integer
+    RoundCornersAll = nil,
 
 }
 
@@ -3829,6 +4375,10 @@ ImGuiKey = {
     ---`
     ---@type integer
     GraveAccent = nil,
+
+    ---Non-US backslash.
+    ---@type integer
+    Oem102 = nil,
 
     ---@type integer
     CapsLock = nil,
