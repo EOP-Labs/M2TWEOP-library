@@ -52,6 +52,11 @@ namespace fbxModels
 		vector<fbxObject*>objects;
 	}data;
 
+	bool hasDrawableObjects()
+	{
+		return !data.objects.empty();
+	}
+
 	void draw(int drawType, int gameVer)
 	{
 		// Set up world matrix

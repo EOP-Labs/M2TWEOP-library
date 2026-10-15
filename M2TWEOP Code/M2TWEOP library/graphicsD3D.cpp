@@ -151,6 +151,8 @@ NOINLINE void graphicsD3D::onDrawPartsOfStratObjects()
 	{
 		f();
 	}
+	if (!fbxModels::hasDrawableObjects())
+		return;
 	const bool battleState = battleHelpers::inBattle();
 
 	//1-stratmap
@@ -201,10 +203,10 @@ std::tuple<int, int, void*> graphicsExport::loadTextureToGame(const std::string&
 	int x = 0;
 	int y = 0;
 	LPDIRECT3DTEXTURE9 retTexture = loadTexture(path.c_str(), &x, &y);
-	
+
 	return std::make_tuple(x, y, reinterpret_cast<void*>(retTexture));
 }
-	
+
 void graphicsExport::unloadTextureFromGame(void* texture)
 {
 	unloadTexture(static_cast<LPDIRECT3DTEXTURE9>(texture));
@@ -225,7 +227,7 @@ void graphicsD3D::onDrawAllGameStuff()
 
 	auto& developerMode = globals::dataS.Modules.developerMode;
 	developerMode.update();
-	
+
 	if (m2tweopOptions::getHideUnknownUnitTooltips())
 	{
 		TOOLTIP_COUNTER++;
@@ -237,7 +239,7 @@ void graphicsD3D::onDrawAllGameStuff()
 	}
 
 	drawOnEndScene(dataS.pDevice);
-	
+
 	if (!battleHelpers::inBattle())
 		globals::dataS.Modules.contextMenuStrat.Draw();
 
@@ -292,7 +294,7 @@ void graphicsD3D::onDrawAllGameStuff()
 					ImGui::NewLine();
 					ImGui::NewLine();
 					ImGui::SetCursorPosX((ImGui::GetWindowSize().x - logoPos.y * 2) * 0.5f);
-					
+
 					ImGui::NewLine();
 					ImGui::NewLine();
 					ImGui::NewLine();
@@ -669,7 +671,7 @@ EOP_EXPORT void graphicsExport::onCreateDevice(IDirect3DDevice9* pDevice)
 
 EOP_EXPORT void graphicsExport::onEndScene(IDirect3DDevice9* pDevice)
 {
-		
+
 }
 
 EOP_EXPORT void graphicsExport::onReset(IDirect3DDevice9* pDevice, D3DPRESENT_PARAMETERS* pPresentationParameters)

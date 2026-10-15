@@ -15,6 +15,7 @@ namespace fbxModels
 	//1-stratmap
 	//2-tactmap
 	void draw(int drawType,int gameVer);
+	bool hasDrawableObjects();
 
 	bool addFbxModel(const char* path, const char* texture,int modelID);
 	bool deleteFbxModel(int modelID);
