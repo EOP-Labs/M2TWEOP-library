@@ -771,13 +771,16 @@ public:
 	{
 		ammo = newAmmo & 0x7F;
 	}
-	bool isShieldPiercing()
+	bool isShieldPiercing() const
 	{
-		return minAttackDelayPri == SP_MAGIC_NUMBER;
+		return this->minAttackDelayPri == SP_MAGIC_NUMBER;
 	}
-	void setIsShieldPiercing()
+	void setIsShieldPiercing(const bool newIsShieldPiercing)
 	{
-		minAttackDelayPri = SP_MAGIC_NUMBER;
+		if (newIsShieldPiercing)
+			this->minAttackDelayPri = SP_MAGIC_NUMBER;
+		else if (isShieldPiercing())
+			this->minAttackDelayPri = 0;
 	}
 };
 

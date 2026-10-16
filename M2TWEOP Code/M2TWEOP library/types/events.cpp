@@ -783,6 +783,14 @@ void onAiTurn(aiFaction* aifaction)
 	}
 }
 
+void onBattleCompleted()
+{
+	if (plugData::data.luaAll.onBattleCompleted != nullptr)
+	{
+		tryLua((*plugData::data.luaAll.onBattleCompleted)());
+	}
+}
+
 void onEndSiege(int x, int y)
 {
 	if (plugData::data.luaAll.onEndSiege != nullptr)
@@ -1517,6 +1525,7 @@ void luaPlugin::onPluginLoadF()
 	@tfield onExitToMenu onExitToMenu
 	@tfield onUnloadCampaign onUnloadCampaign
 	@tfield onAiTurn onAiTurn
+	@tfield onBattleCompleted onBattleCompleted
 	@tfield onCalculateLTGD onCalculateLTGD
 	@tfield onSetProductionControllers onSetProductionControllers
 	@tfield onSpawnArmy onSpawnArmy
@@ -4373,6 +4382,21 @@ void luaPlugin::onPluginLoadF()
 
 	onAiTurn = new sol::function(luaState["onAiTurn"]);
 	checkLuaFunc(&onAiTurn);
+
+	/***
+	Called when an auto-resolved or manual battle ends. Keep in mind characters that will die due to being in a defensive garrison that lost or have no flee tile will not be marked as death yet but will be destroyed with the army.
+
+	@function onBattleCompleted
+
+	@usage
+	function onBattleCompleted()
+	local battleData = M2TW.battle
+	--something here
+	end
+	*/
+
+	onBattleCompleted = new sol::function(luaState["onBattleCompleted"]);
+	checkLuaFunc(&onBattleCompleted);
 
 	/***
 	Called just after LTGD reads xml every turn.

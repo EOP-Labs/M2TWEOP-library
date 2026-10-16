@@ -2516,6 +2516,18 @@ private:
 	LPVOID funcAddress;
 };
 
+class onBattleCompleted
+	:public AATemplate
+{
+public:
+	onBattleCompleted(MemWork* mem, LPVOID addr, int ver);
+	~onBattleCompleted() = default;
+	
+	void SetNewCode();
+private:
+	LPVOID funcAddress;
+};
+
 
 class onExchangeWithCharacter
 	:public AATemplate

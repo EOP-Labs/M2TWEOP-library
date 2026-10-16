@@ -168,6 +168,7 @@ public:
 	static uint32_t __fastcall onDrawBanner(const trackedArmy* army);
 	static bannerData* __fastcall onGetRebelSymbol(const trackedArmy* army, bannerData* oldData);
 	static void __fastcall onPredictedStats(settlementStats* statsManager);
+	static void* __fastcall onBattleCompleted();
 	static int __fastcall onEvalAttObjective(const aiCampaignController* controller);
 	static void __fastcall onCalculateLTGD(aiLongTermGoalDirector* ltgd);
 	static void __fastcall onStartProductionTurn(aiPersonalityValues* personality);

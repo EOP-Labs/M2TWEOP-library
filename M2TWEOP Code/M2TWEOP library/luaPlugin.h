@@ -134,6 +134,7 @@ public:
 	sol::function* onExitToMenu = nullptr;
 	sol::function* onUnloadCampaign = nullptr;
 	sol::function* onAiTurn = nullptr;
+	sol::function* onBattleCompleted = nullptr;
 	sol::function* onEndSiege = nullptr;
 	sol::function* onStartSiege = nullptr;
 	sol::function* onSelectWorldpkgdesc = nullptr;

@@ -1635,25 +1635,29 @@ int patchesForGame::chooseCaptainUnit(armyStruct* army)
 	int bestBackupUnit = -1;
 	int bestMercUnit = -1;
 	float bestUnitValue = 0.f;
+	float bestUnitValueTotal = 0.f;
 	float bestBackupUnitValue = 0.f;
 	float bestMercUnitValue = 0.f;
 	
 	for (int i = 0; i < army->numOfUnits; ++i)
 	{
 		const auto un = army->units[i];
-		if (un->eduEntry->generalUnit || un->eduEntry->generalUnitUpgrade)
+		if ((un->eduEntry->generalUnit || un->eduEntry->generalUnitUpgrade) && !un->isMercenary)
 		{
 			return i;
 		}
 		const auto value = un->eduEntry->aiUnitValue;
 		const auto valuePerSoldier = un->eduEntry->aiUnitValuePerSoldier;
-		if (!un->eduEntry->mercenaryUnit && (!un->eduEntry->mount || un->eduEntry->mount->mountClass != mountClass::elephant))
+		if (!un->isMercenary && (!un->eduEntry->mount || un->eduEntry->mount->mountClass != mountClass::elephant))
 		{
-			if (valuePerSoldier > bestUnitValue 
-				&& ((static_cast<float>(un->SoldierCountStrat) / static_cast<float>(un->SoldierCountMaxStrat)) > 0.5f))
+			if ((static_cast<float>(un->SoldierCountStrat) / static_cast<float>(un->SoldierCountMaxStrat)) > 0.5f)
 			{
-				bestUnitValue = valuePerSoldier;
-				bestUnit = i;
+				if (valuePerSoldier > bestUnitValue || (FLOAT_EQUAL(valuePerSoldier, bestUnitValue) && value > bestUnitValueTotal))
+				{
+					bestUnitValue = valuePerSoldier;
+					bestUnit = i;
+					bestUnitValueTotal = value;
+				}
 			}
 			if (value > bestBackupUnitValue)
 			{
@@ -1885,6 +1889,12 @@ void patchesForGame::onPredictedStats(settlementStats* statsManager)
 	if(!statsManager->settlement->isMinorSettlement)
 		return;
 	balanceMinorSettStats(statsManager, statsManager->settlement);
+}
+
+void* __fastcall patchesForGame::onBattleCompleted()
+{
+	gameEvents::onBattleCompleted();
+	return campaignHelpers::getStratPathFinding();
 }
 
 int patchesForGame::onEvalAttObjective(const aiCampaignController* controller)
@@ -3577,10 +3587,10 @@ void minHookFunctions::init()
 /* prevents infinite loop in pathfinding code, game bug with invalid float argument */
 bool __thiscall minHookFunctions::onCalcPathFindWidth(void* _this, vector2* start, vector2* end, float maxWidth, float* outWidth, int swim, int maxSlope, int validZone)
 {
-	if (!(maxWidth >= 0.f && maxWidth <= 256.f))                                                                                                                                                                                    
+	if (!(maxWidth >= 0.f && maxWidth <= 2048.f))                                                                                                                                                                                    
 	{                                                                                                                                                                                                                               
-		gameHelpers::logStringGame("onCalcPathFindWidth: maxWidth out of range or NaN, resetting to 256.f");                                                                                                                           
-		maxWidth = 256.f;                                                                                                                                                                                                       
+		gameHelpers::logStringGame("onCalcPathFindWidth: maxWidth out of range or NaN, resetting to 2048.f");                                                                                                                           
+		maxWidth = 2048.f;                                                                                                                                                                                                       
 	}  
 	
 	return o_onCalcPathFindWidth(_this, start, end, maxWidth, outWidth, swim, maxSlope, validZone);

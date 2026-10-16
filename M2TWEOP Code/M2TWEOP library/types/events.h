@@ -235,6 +235,7 @@ namespace gameEvents
 	void onRemoveFromUnitQueue(const unitRQ* item);
 	void onNewGameLoaded();
 	void onAiTurn(aiFaction* aiFaction);
+	void onBattleCompleted();
 	void onEndSiege(int x, int y);
 	void onStartSiege(int x, int y);
 

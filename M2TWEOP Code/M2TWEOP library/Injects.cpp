@@ -6993,6 +6993,30 @@ void onHealCasualties::SetNewCode()
 	delete a;
 }
 
+onBattleCompleted::onBattleCompleted(MemWork* mem, LPVOID addr, int ver)
+	:AATemplate(mem), funcAddress(addr)
+{
+	if (ver == 2)//steam
+		m_adress = 0x4FF55D;
+
+	else if (ver == 1)//kingdoms
+		m_adress = 0x4FEFED;
+}
+
+void onBattleCompleted::SetNewCode()
+{
+	const auto a = new Assembler();
+	a->pushad();
+	a->mov(eax, reinterpret_cast<DWORD>(funcAddress));
+	a->call(eax);
+	a->mov(dword_ptr(esp, 0x1C), eax);
+	a->popad();
+	a->mov(ecx, eax);
+	a->ret();
+	m_cheatBytes = static_cast<unsigned char*>(a->make());
+	delete a;
+}
+
 onSetBuildPolicies::onSetBuildPolicies(MemWork* mem, LPVOID addr, int ver)
 	:AATemplate(mem), funcAddress(addr)
 {

@@ -1558,6 +1558,12 @@ void managerF::execPatches()
 	toAiTurn->SetNewCode();
 	toAiTurn->Enable();
 	f1 << "Done" << '\n';
+	
+	f1 << "Start applying onBattleCompleted patch" << '\n';
+	onBattleCompleted* toBattleCompleted = new onBattleCompleted(mem, (LPVOID)patchesForGame::onBattleCompleted, globals::dataS.gameVersion);
+	toBattleCompleted->SetNewCode();
+	toBattleCompleted->Enable();
+	f1 << "Done" << '\n';
 
 	f1 << "Start applying toCalculateUnitValue patch" << '\n';
 	OnCalculateUnitValue* toCalculateUnitValue = new OnCalculateUnitValue(mem, (LPVOID)patchesForGame::onCalculateUnitValue, globals::dataS.gameVersion);
