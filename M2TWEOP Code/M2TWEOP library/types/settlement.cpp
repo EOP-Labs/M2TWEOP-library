@@ -971,9 +971,9 @@ namespace settlementHelpers
 
 	buildingInQueue* getBuildingInQueue(buildingsQueue* queue, int position)
 	{
-		if (position > 0)
-			return &queue->buildingQueue[position];
-		return nullptr;
+		if (position < 1 || position > queue->buildingQueue.num)
+			return nullptr;
+		return &queue->buildingQueue[position - 1];
 	}
 
 	availableBuildings* getAvailableBuildingsMem()
